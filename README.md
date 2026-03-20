@@ -2,7 +2,7 @@
 
 基于传统纳甲筮法的六爻排盘 Web 应用，使用五帝钱（铜钱）起卦。
 
-🔗 **在线体验**：[liuyao-jo87x0ou6-liang611zhs-projects.vercel.app](https://liuyao-jo87x0ou6-liang611zhs-projects.vercel.app/)
+🔗 [**Online Demo**](https://liuyao-kappa.vercel.app/)
 
 ## 功能
 
