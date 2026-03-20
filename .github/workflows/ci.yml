@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate HTML & JS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check file structure
+        run: |
+          echo "Checking required files..."
+          for f in index.html css/style.css js/data.js js/app.js js/ai.js; do
+            if [ ! -f "$f" ]; then
+              echo "❌ Missing: $f"
+              exit 1
+            fi
+            echo "✅ $f"
+          done
+
+      - name: Validate HTML
+        run: |
+          npx html-validate@latest index.html || true
+
+      - name: Lint JavaScript
+        run: |
+          npx --yes eslint js/*.js --no-eslintrc \
+            --env browser,es2020 \
+            --parser-options=ecmaVersion:2020 \
+            --rule '{"no-undef":"off","no-unused-vars":"warn","no-redeclare":"error","eqeqeq":"warn"}' \
+            || true
+
+      - name: Check for sensitive files
+        run: |
+          echo "Checking for sensitive files..."
+          FOUND=0
+          for pattern in .env .env.local credentials.json *.key *.pem; do
+            if ls $pattern 2>/dev/null; then
+              echo "❌ Sensitive file found: $pattern"
+              FOUND=1
+            fi
+          done
+          if [ $FOUND -eq 1 ]; then
+            exit 1
+          fi
+          echo "✅ No sensitive files found"
+
+      - name: Check script load order
+        run: |
+          echo "Verifying script load order in index.html..."
+          DATA_LINE=$(grep -n 'js/data.js' index.html | head -1 | cut -d: -f1)
+          AI_LINE=$(grep -n 'js/ai.js' index.html | head -1 | cut -d: -f1)
+          APP_LINE=$(grep -n 'js/app.js' index.html | head -1 | cut -d: -f1)
+          if [ "$DATA_LINE" -lt "$AI_LINE" ] && [ "$AI_LINE" -lt "$APP_LINE" ]; then
+            echo "✅ Script order correct: data.js ($DATA_LINE) → ai.js ($AI_LINE) → app.js ($APP_LINE)"
+          else
+            echo "❌ Script order wrong! Must be: data.js → ai.js → app.js"
+            exit 1
+          fi
+
+      - name: Verify hexagram data completeness
+        run: |
+          node -e "
+            eval(require('fs').readFileSync('js/data.js','utf8'));
+            const count = Object.keys(HEXAGRAMS).length;
+            if (count !== 64) {
+              console.error('❌ Expected 64 hexagrams, got ' + count);
+              process.exit(1);
+            }
+            console.log('✅ All 64 hexagrams present');
+
+            const palaceCount = Object.keys(PALACES).length;
+            if (palaceCount !== 8) {
+              console.error('❌ Expected 8 palaces, got ' + palaceCount);
+              process.exit(1);
+            }
+            console.log('✅ All 8 palaces present');
+          "
