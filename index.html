@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>六爻排盘</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+</head>
+<body>
+  <div class="app-container">
+
+    <!-- ==================== 起始页 ==================== -->
+    <div id="screen-start" class="start-screen">
+      <h1 class="app-title">六爻排盘</h1>
+      <p class="app-subtitle">五帝钱起卦 · 传统纳甲筮法</p>
+
+      <div class="setting-row">
+        <span id="current-datetime" style="font-size:0.95rem; color:#6D4C41;"></span>
+      </div>
+      <div class="setting-row">
+        <span id="current-ganzhi" style="font-size:1rem; font-weight:600; color:#8B0000;"></span>
+      </div>
+
+      <div class="setting-row" style="margin-top:16px;">
+        <label>时辰：</label>
+        <select id="shichen-select" style="padding:6px 10px; border:1px solid #D7CCC8; border-radius:8px; background:white; font-size:0.9rem; color:#3E2723;"></select>
+      </div>
+
+      <div class="question-input">
+        <label for="question-text">占问之事（选填）</label>
+        <textarea id="question-text" rows="2" placeholder="可在此写下想问的事情，也可不填，心中默念即可"></textarea>
+      </div>
+
+      <div class="coin-guide">
+        <div class="coin-guide-title">铜钱/硬币正反面说明</div>
+        <div class="coin-guide-row">
+          <span class="coin-guide-dot dot-yang"></span>
+          <span><b>字（阳）</b>：有文字/数字的一面</span>
+        </div>
+        <div class="coin-guide-row">
+          <span class="coin-guide-dot dot-yin"></span>
+          <span><b>背（阴）</b>：有花纹/图案的一面</span>
+        </div>
+      </div>
+
+      <div class="mode-toggle" style="margin-top:20px;">
+        <button id="btn-start" class="btn-primary">随机起卦</button>
+        <button id="btn-manual" class="btn-secondary">手动录入</button>
+      </div>
+    </div>
+
+    <!-- ==================== 手动录入页 ==================== -->
+    <div id="screen-manual" class="manual-screen hidden">
+      <div class="throw-header">
+        <div class="throw-progress">手动录入排盘</div>
+        <div class="throw-hint">逐爻录入铜钱结果（从初爻到上爻）</div>
+      </div>
+
+      <div class="manual-rows" id="manual-rows"></div>
+
+      <div class="manual-footer">
+        <button id="btn-manual-submit" class="btn-primary" disabled>生成排盘</button>
+        <button id="btn-manual-back" class="btn-restart">返回</button>
+      </div>
+    </div>
+
+    <!-- ==================== 摇卦页 ==================== -->
+    <div id="screen-throwing" class="throwing-screen hidden">
+      <div class="throw-header">
+        <div id="throw-progress" class="throw-progress"></div>
+        <div id="throw-hint" class="throw-hint"></div>
+      </div>
+
+      <div class="coins-area">
+        <div id="coins-display"></div>
+        <div id="throw-result-text" class="throw-result"></div>
+      </div>
+
+      <div class="throw-preview">
+        <div class="preview-title">卦象构建（下→上）</div>
+        <div id="throw-preview"></div>
+      </div>
+    </div>
+
+    <!-- ==================== 排盘结果 ==================== -->
+    <div id="screen-result" class="result-screen hidden">
+      <!-- 可截图区域 -->
+      <div id="capture-area" class="capture-area">
+        <div class="result-header">
+          <h2>卦象排盘</h2>
+          <div id="result-datetime" style="font-size:0.8rem; color:#6D4C41; margin-bottom:8px;"></div>
+          <div id="result-title"></div>
+          <div id="result-trigrams" class="result-trigrams"></div>
+        </div>
+
+        <div class="paipan-table">
+          <div id="result-table"></div>
+        </div>
+
+        <div class="capture-watermark">六爻排盘 · 纳甲筮法</div>
+      </div>
+
+      <div class="result-footer">
+        <button id="btn-copy-prompt" class="btn-copy-prompt">复制卦象结果</button>
+        <button id="btn-save" class="btn-save">保存结果图</button>
+        <button id="btn-restart" class="btn-restart">重新起卦</button>
+      </div>
+      <div class="copy-hint hidden" id="copy-hint">已复制，可粘贴到任意 AI 对话中解读</div>
+
+      <!-- AI 自动解读 -->
+      <div class="ai-section">
+        <div class="ai-section-title">AI 自动解读</div>
+        <div class="ai-controls">
+          <select id="ai-provider-select" class="ai-select"></select>
+          <button id="btn-ai-interpret" class="btn-ai">开始解读</button>
+          <button id="btn-ai-stop" class="btn-ai-stop hidden">停止</button>
+          <button id="btn-ai-settings" class="btn-ai-settings" title="配置 API Key">⚙</button>
+        </div>
+        <div id="ai-output" class="ai-output hidden"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 设置弹窗 -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>AI 模型配置</h3>
+        <button id="btn-settings-close" class="modal-close">&times;</button>
+      </div>
+      <div id="settings-body" class="settings-body"></div>
+      <div class="modal-footer">
+        <button id="btn-settings-save" class="btn-primary" style="padding:10px 32px; font-size:0.95rem;">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
