@@ -21,7 +21,7 @@ jobs:
       - name: Check file structure
         run: |
           echo "Checking required files..."
-          for f in index.html css/style.css js/data.js js/app.js js/ai.js; do
+          for f in index.html css/style.css js/i18n.js js/data.js js/app.js js/ai.js; do
             if [ ! -f "$f" ]; then
               echo "❌ Missing: $f"
               exit 1
@@ -59,13 +59,14 @@ jobs:
       - name: Check script load order
         run: |
           echo "Verifying script load order in index.html..."
+          I18N_LINE=$(grep -n 'js/i18n.js' index.html | head -1 | cut -d: -f1)
           DATA_LINE=$(grep -n 'js/data.js' index.html | head -1 | cut -d: -f1)
           AI_LINE=$(grep -n 'js/ai.js' index.html | head -1 | cut -d: -f1)
           APP_LINE=$(grep -n 'js/app.js' index.html | head -1 | cut -d: -f1)
-          if [ "$DATA_LINE" -lt "$AI_LINE" ] && [ "$AI_LINE" -lt "$APP_LINE" ]; then
-            echo "✅ Script order correct: data.js ($DATA_LINE) → ai.js ($AI_LINE) → app.js ($APP_LINE)"
+          if [ "$I18N_LINE" -lt "$DATA_LINE" ] && [ "$DATA_LINE" -lt "$AI_LINE" ] && [ "$AI_LINE" -lt "$APP_LINE" ]; then
+            echo "✅ Script order correct: i18n.js ($I18N_LINE) → data.js ($DATA_LINE) → ai.js ($AI_LINE) → app.js ($APP_LINE)"
           else
-            echo "❌ Script order wrong! Must be: data.js → ai.js → app.js"
+            echo "❌ Script order wrong! Must be: i18n.js → data.js → ai.js → app.js"
             exit 1
           fi
 
