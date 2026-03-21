@@ -147,6 +147,12 @@ ${linesText}
 
 请用通俗易懂的语言解读，避免过于晦涩的术语。`;
 
+  // 添加语言指令
+  const langInstruction = t('ai_prompt_lang');
+  if (langInstruction) {
+    prompt += `\n\n${langInstruction}`;
+  }
+
   return prompt;
 }
 
@@ -169,7 +175,7 @@ async function* streamOpenAI(endpoint, apiKey, model, prompt) {
   });
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`API 错误 (${res.status}): ${err}`);
+    throw new Error(`${t('ai_error_api')} (${res.status}): ${err}`);
   }
   yield* parseSSE(res.body, chunk => {
     if (chunk === '[DONE]') return null;
@@ -198,7 +204,7 @@ async function* streamAnthropic(endpoint, apiKey, model, prompt) {
   });
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`API 错误 (${res.status}): ${err}`);
+    throw new Error(`${t('ai_error_api')} (${res.status}): ${err}`);
   }
   yield* parseSSE(res.body, chunk => {
     try {
@@ -222,7 +228,7 @@ async function* streamGemini(apiKey, model, prompt) {
   });
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`API 错误 (${res.status}): ${err}`);
+    throw new Error(`${t('ai_error_api')} (${res.status}): ${err}`);
   }
   yield* parseSSE(res.body, chunk => {
     try {
@@ -270,14 +276,14 @@ async function* streamAI(providerId, prompt) {
   const apiKey = config.apiKey;
   const model = config.model || provider.defaultModel;
 
-  if (!apiKey) throw new Error('请先配置 API Key');
+  if (!apiKey) throw new Error(t('ai_error_no_key'));
 
   switch (provider.type) {
     case 'openai': {
       const endpoint = providerId === 'custom'
         ? config.endpoint
         : provider.endpoint;
-      if (!endpoint) throw new Error('请配置 API 端点');
+      if (!endpoint) throw new Error(t('ai_error_no_endpoint'));
       yield* streamOpenAI(endpoint, apiKey, model, prompt);
       break;
     }
@@ -306,14 +312,18 @@ function renderSettingsModal() {
     const section = document.createElement('div');
     section.className = 'settings-provider';
 
+    const hintKey = { '免费':'ai_hint_free', '极低价':'ai_hint_cheap', '付费':'ai_hint_paid', 'OpenAI 兼容':'ai_hint_custom' }[provider.hint] || 'ai_hint_custom';
+    const displayHint = t(hintKey);
+    const displayName = id === 'custom' ? t('ai_provider_custom') : provider.name;
+
     let fieldsHTML = `
       <div class="settings-field">
-        <label>API Key</label>
+        <label>${t('ai_api_key')}</label>
         <input type="password" id="cfg-${id}-key" value="${config.apiKey || ''}"
-               placeholder="输入 ${provider.name} API Key" />
+               placeholder="${t('ai_placeholder_key', { name: provider.name })}" />
       </div>
       <div class="settings-field">
-        <label>模型</label>
+        <label>${t('ai_model')}</label>
         <select id="cfg-${id}-model">
     `;
     const models = id === 'custom'
@@ -328,22 +338,22 @@ function renderSettingsModal() {
     if (id === 'custom') {
       fieldsHTML += `
         <div class="settings-field">
-          <label>端点 URL</label>
+          <label>${t('ai_endpoint')}</label>
           <input type="url" id="cfg-custom-endpoint" value="${config.endpoint || ''}"
-                 placeholder="https://your-api.com/v1/chat/completions" />
+                 placeholder="${t('ai_placeholder_endpoint')}" />
         </div>
         <div class="settings-field">
-          <label>模型名称</label>
+          <label>${t('ai_model_name')}</label>
           <input type="text" id="cfg-custom-modelname" value="${config.customModelName || ''}"
-                 placeholder="模型 ID" />
+                 placeholder="${t('ai_placeholder_model')}" />
         </div>
       `;
     }
 
     section.innerHTML = `
       <div class="settings-provider-header">
-        <span class="settings-provider-name">${provider.name}</span>
-        <span class="settings-provider-hint">${provider.hint}</span>
+        <span class="settings-provider-name">${displayName}</span>
+        <span class="settings-provider-hint">${displayHint}</span>
       </div>
       ${fieldsHTML}
     `;
@@ -396,7 +406,7 @@ function renderProviderSelector() {
   if (configured.length === 0) {
     const opt = document.createElement('option');
     opt.value = '';
-    opt.textContent = '请先配置 API Key ↗';
+    opt.textContent = t('ai_no_provider');
     select.appendChild(opt);
     return;
   }
@@ -405,7 +415,9 @@ function renderProviderSelector() {
     const p = AI_PROVIDERS[id];
     const opt = document.createElement('option');
     opt.value = id;
-    opt.textContent = `${p.name}（${p.hint}）`;
+    const hintKey = { '免费':'ai_hint_free', '极低价':'ai_hint_cheap', '付费':'ai_hint_paid', 'OpenAI 兼容':'ai_hint_custom' }[p.hint] || 'ai_hint_custom';
+    const displayName = id === 'custom' ? t('ai_provider_custom') : p.name;
+    opt.textContent = `${displayName}（${t(hintKey)}）`;
     if (id === lastUsed) opt.selected = true;
     select.appendChild(opt);
   }

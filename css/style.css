@@ -37,6 +37,25 @@ body {
 
 .hidden { display: none !important; }
 
+/* 语言切换 */
+.lang-switcher {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -8px;
+}
+
+.lang-select {
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: white;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.lang-select:focus { outline: none; border-color: var(--accent-gold); }
+
 /* ============================================================
    起始页
    ============================================================ */
