@@ -5,12 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>六爻排盘</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>☰</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
 </head>
 <body>
+  <div class="stars-bg" aria-hidden="true"></div>
   <div class="app-container">
 
     <!-- 语言切换 -->
@@ -24,15 +28,15 @@
       <p class="app-subtitle" data-i18n="app_subtitle">五帝钱起卦 · 传统纳甲筮法</p>
 
       <div class="setting-row">
-        <span id="current-datetime" style="font-size:0.95rem; color:#6D4C41;"></span>
+        <span id="current-datetime" class="datetime-display"></span>
       </div>
       <div class="setting-row">
-        <span id="current-ganzhi" style="font-size:1rem; font-weight:600; color:#8B0000;"></span>
+        <span id="current-ganzhi" class="ganzhi-display"></span>
       </div>
 
       <div class="setting-row" style="margin-top:16px;">
         <label data-i18n="label_shichen">时辰：</label>
-        <select id="shichen-select" style="padding:6px 10px; border:1px solid #D7CCC8; border-radius:8px; background:white; font-size:0.9rem; color:#3E2723;"></select>
+        <select id="shichen-select" class="shichen-select"></select>
       </div>
 
       <div class="question-input">
@@ -97,7 +101,7 @@
       <div id="capture-area" class="capture-area">
         <div class="result-header">
           <h2 data-i18n="result_header">卦象排盘</h2>
-          <div id="result-datetime" style="font-size:0.8rem; color:#6D4C41; margin-bottom:8px;"></div>
+          <div id="result-datetime" class="result-datetime"></div>
           <div id="result-title"></div>
           <div id="result-trigrams" class="result-trigrams"></div>
         </div>
@@ -140,7 +144,7 @@
       </div>
       <div id="settings-body" class="settings-body"></div>
       <div class="modal-footer">
-        <button id="btn-settings-save" class="btn-primary" style="padding:10px 32px; font-size:0.95rem;" data-i18n="btn_settings_save">保存</button>
+        <button id="btn-settings-save" class="btn-primary btn-modal-save" data-i18n="btn_settings_save">保存</button>
       </div>
     </div>
   </div>

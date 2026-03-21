@@ -1,16 +1,75 @@
 /* ============================================================
-   六爻排盘 - 样式
+   六爻排盘 — Oracle's Sanctum
+   Dark mystical theme with gold accents
    ============================================================ */
 
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 8px rgba(201,168,76,0.2); }
+  50% { box-shadow: 0 0 20px rgba(201,168,76,0.4); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes coinFlip {
+  0% { transform: rotateX(0deg) rotateY(0deg); }
+  25% { transform: rotateX(180deg) rotateY(90deg) scale(1.05); }
+  50% { transform: rotateX(360deg) rotateY(180deg); }
+  75% { transform: rotateX(540deg) rotateY(270deg) scale(1.05); }
+  100% { transform: rotateX(720deg) rotateY(360deg); }
+}
+
+@keyframes coinBounce {
+  0% { transform: translateY(0) scale(1); }
+  20% { transform: translateY(-40px) scale(1.08); }
+  40% { transform: translateY(-5px) scale(0.97); }
+  55% { transform: translateY(-20px) scale(1.03); }
+  75% { transform: translateY(-3px) scale(0.99); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
 :root {
-  --bg-color: #FDF6E3;
-  --bg-card: #FAF0D7;
-  --text-primary: #3E2723;
-  --text-secondary: #6D4C41;
-  --accent-red: #8B0000;
-  --accent-gold: #B8860B;
-  --accent-green: #2E7D32;
-  --border-color: #D7CCC8;
+  --bg-deep: #080810;
+  --bg-surface: #0f0f1e;
+  --bg-card: rgba(18, 18, 36, 0.85);
+  --bg-card-solid: #121224;
+  --glass: rgba(201, 168, 76, 0.06);
+  --text-primary: #e8e0d0;
+  --text-secondary: #8a8078;
+  --text-dim: #5a5550;
+  --gold: #c9a84c;
+  --gold-bright: #e8c84a;
+  --gold-dim: #8a7030;
+  --gold-glow: rgba(201, 168, 76, 0.3);
+  --crimson: #a83232;
+  --crimson-soft: #c45050;
+  --jade: #3a7a5a;
+  --border-color: rgba(201, 168, 76, 0.15);
+  --border-glow: rgba(201, 168, 76, 0.3);
 }
 
 * {
@@ -19,63 +78,126 @@
   padding: 0;
 }
 
+/* ============================================================
+   Background & Base
+   ============================================================ */
 body {
-  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
-  background-color: var(--bg-color);
+  font-family: 'Noto Serif SC', 'PingFang SC', 'Microsoft YaHei', serif;
+  background: var(--bg-deep);
   color: var(--text-primary);
   min-height: 100vh;
   display: flex;
   justify-content: center;
+  overflow-x: hidden;
+}
+
+.stars-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(30, 20, 60, 0.8) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(40, 25, 15, 0.6) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 100%, rgba(20, 15, 40, 0.9) 0%, transparent 60%),
+    var(--bg-deep);
+}
+
+/* CSS-only stars */
+.stars-bg::before,
+.stars-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 30% 65%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1.5px 1.5px at 55% 15%, rgba(201,168,76,0.7), transparent),
+    radial-gradient(1px 1px at 70% 45%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 85% 75%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1.5px 1.5px at 20% 80%, rgba(201,168,76,0.5), transparent),
+    radial-gradient(1px 1px at 45% 90%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 90% 10%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 65% 55%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1.5px 1.5px at 5% 45%, rgba(201,168,76,0.4), transparent);
+  animation: twinkle 4s ease-in-out infinite;
+}
+
+.stars-bg::after {
+  background-image:
+    radial-gradient(1px 1px at 15% 35%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1.5px 1.5px at 40% 10%, rgba(201,168,76,0.6), transparent),
+    radial-gradient(1px 1px at 60% 80%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 25% 55%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1px 1px at 80% 30%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 50% 45%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1.5px 1.5px at 95% 60%, rgba(201,168,76,0.5), transparent),
+    radial-gradient(1px 1px at 35% 85%, rgba(255,255,255,0.4), transparent);
+  animation-delay: -2s;
+  animation-duration: 5s;
 }
 
 .app-container {
   width: 100%;
   max-width: 480px;
   padding: 16px;
-  padding-bottom: 40px;
+  padding-bottom: 60px;
+  position: relative;
+  z-index: 1;
 }
 
 .hidden { display: none !important; }
 
-/* 语言切换 */
+/* ============================================================
+   Language Switcher
+   ============================================================ */
 .lang-switcher {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: -8px;
+  margin-bottom: -4px;
 }
 
 .lang-select {
-  padding: 4px 8px;
+  padding: 5px 10px;
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  background: white;
-  font-size: 0.8rem;
+  background: var(--bg-card);
+  font-size: 0.78rem;
   color: var(--text-secondary);
   cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
-.lang-select:focus { outline: none; border-color: var(--accent-gold); }
+.lang-select:focus {
+  outline: none;
+  border-color: var(--gold);
+}
 
 /* ============================================================
-   起始页
+   Start Screen
    ============================================================ */
 .start-screen {
   text-align: center;
-  padding-top: 60px;
+  padding-top: 50px;
+  animation: fadeInUp 0.6s ease-out;
 }
 
 .app-title {
-  font-size: 2.2rem;
+  font-family: 'Cinzel Decorative', 'Noto Serif SC', serif;
+  font-size: 2.4rem;
   font-weight: 700;
-  color: var(--accent-red);
+  color: var(--gold);
   margin-bottom: 8px;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.2em;
+  text-shadow: 0 0 30px rgba(201,168,76,0.3), 0 2px 4px rgba(0,0,0,0.5);
 }
 
 .app-subtitle {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: var(--text-secondary);
-  margin-bottom: 40px;
+  margin-bottom: 36px;
+  letter-spacing: 0.15em;
 }
 
 .setting-row {
@@ -83,114 +205,204 @@ body {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  margin-bottom: 20px;
-  font-size: 0.95rem;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
 }
 
 .setting-row label {
   color: var(--text-secondary);
 }
 
-.setting-row select {
+.datetime-display {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.ganzhi-display {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gold);
+  text-shadow: 0 0 12px rgba(201,168,76,0.2);
+}
+
+.shichen-select {
   padding: 6px 12px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  background: white;
-  font-size: 1rem;
+  background: var(--bg-card);
+  font-size: 0.88rem;
   color: var(--text-primary);
+  font-family: inherit;
+}
+
+.shichen-select:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+/* Question Input */
+.question-input {
+  margin-top: 20px;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.question-input label {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  text-align: center;
+  letter-spacing: 0.05em;
+}
+
+.question-input textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-card);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  resize: none;
+  font-family: inherit;
+  line-height: 1.6;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.question-input textarea::placeholder {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+}
+
+.question-input textarea:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 16px rgba(201,168,76,0.15);
+}
+
+/* Coin Guide */
+.coin-guide {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-top: 20px;
+  text-align: left;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.coin-guide-title {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  text-align: center;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.coin-guide-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.coin-guide-row:last-child { margin-bottom: 0; }
+.coin-guide-row b { color: var(--text-primary); }
+
+.coin-guide-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot-yang {
+  background: radial-gradient(circle at 35% 35%, #f0d060, #b8860b);
+  box-shadow: 0 0 6px rgba(201,168,76,0.4);
+}
+
+.dot-yin {
+  background: radial-gradient(circle at 35% 35%, #6a5a4a, #3a3028);
+  box-shadow: 0 0 6px rgba(60,50,40,0.4);
+}
+
+/* Buttons */
+.mode-toggle {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 24px;
 }
 
 .btn-primary {
   display: inline-block;
-  padding: 14px 48px;
-  background: var(--accent-red);
-  color: white;
+  padding: 14px 44px;
+  background: linear-gradient(135deg, var(--gold-dim), var(--gold));
+  color: #0a0a10;
   border: none;
   border-radius: 12px;
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: 1.05rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
-  letter-spacing: 0.1em;
+  transition: transform 0.15s, box-shadow 0.3s;
+  letter-spacing: 0.12em;
+  font-family: inherit;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.15);
+  box-shadow: 0 4px 20px rgba(201,168,76,0.25);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 4px 28px rgba(201,168,76,0.4);
 }
 
 .btn-primary:active {
   transform: scale(0.97);
 }
 
-/* 铜钱说明 */
-.coin-guide {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 12px 16px;
-  margin-top: 24px;
-  text-align: left;
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-.coin-guide-title {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-  text-align: center;
-}
-
-.coin-guide-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
-  color: var(--text-primary);
-  margin-bottom: 4px;
-}
-
-.coin-guide-row:last-child { margin-bottom: 0; }
-
-.coin-guide-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.dot-yang {
-  background: linear-gradient(145deg, #F5D080, #DAA520);
-  border: 1px solid #B8860B;
-}
-
-.dot-yin {
-  background: linear-gradient(145deg, #A1887F, #6D4C41);
-  border: 1px solid #5D4037;
-}
-
-.mode-toggle {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  flex-wrap: wrap;
+.btn-modal-save {
+  padding: 10px 32px;
+  font-size: 0.95rem;
 }
 
 .btn-secondary {
   display: inline-block;
-  padding: 14px 36px;
-  background: white;
-  color: var(--accent-red);
-  border: 2px solid var(--accent-red);
+  padding: 14px 34px;
+  background: transparent;
+  color: var(--gold);
+  border: 1.5px solid var(--gold-dim);
   border-radius: 12px;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.15s;
-  letter-spacing: 0.1em;
+  transition: transform 0.15s, border-color 0.3s, box-shadow 0.3s;
+  letter-spacing: 0.12em;
+  font-family: inherit;
+}
+
+.btn-secondary:hover {
+  border-color: var(--gold);
+  box-shadow: 0 0 16px rgba(201,168,76,0.15);
 }
 
 .btn-secondary:active { transform: scale(0.97); }
 
 /* ============================================================
-   手动录入页
+   Manual Entry Screen
    ============================================================ */
 .manual-screen {
   padding-top: 20px;
+  animation: fadeInUp 0.5s ease-out;
 }
 
 .manual-rows {
@@ -212,9 +424,9 @@ body {
 
 .manual-row-label {
   width: 42px;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: var(--accent-red);
+  color: var(--gold);
   flex-shrink: 0;
 }
 
@@ -232,26 +444,28 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s;
   user-select: none;
   -webkit-user-select: none;
-  background: #EEE8D5;
-  color: #BCAAA4;
+  background: var(--bg-surface);
+  color: var(--text-dim);
+  font-family: inherit;
 }
 
 .manual-coin.coin-set-heads {
-  background: linear-gradient(145deg, #F5D080, #DAA520);
-  color: var(--accent-red);
-  border-color: #B8860B;
+  background: radial-gradient(ellipse at 35% 35%, #d4a843, #8b6914);
+  color: #2a1800;
+  border-color: var(--gold-dim);
+  box-shadow: 0 0 10px rgba(201,168,76,0.3);
 }
 
 .manual-coin.coin-set-tails {
-  background: linear-gradient(145deg, #A1887F, #6D4C41);
-  color: #FFF8E1;
-  border-color: #5D4037;
+  background: radial-gradient(ellipse at 35% 35%, #5a4a3a, #2a2018);
+  color: var(--text-primary);
+  border-color: #4a3a2a;
 }
 
 .manual-coin:active { transform: scale(0.9); }
@@ -260,7 +474,7 @@ body {
   width: 52px;
   font-size: 0.75rem;
   text-align: center;
-  color: var(--text-secondary);
+  color: var(--text-dim);
   flex-shrink: 0;
 }
 
@@ -270,7 +484,7 @@ body {
 }
 
 .manual-row-result.is-changing {
-  color: var(--accent-gold);
+  color: var(--gold-bright);
 }
 
 .manual-footer {
@@ -281,52 +495,55 @@ body {
 }
 
 /* ============================================================
-   摇卦页
+   Throwing Screen
    ============================================================ */
 .throwing-screen {
   padding-top: 20px;
+  animation: fadeInUp 0.5s ease-out;
 }
 
 .throw-header {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 .throw-progress {
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   font-weight: 600;
-  color: var(--accent-red);
+  color: var(--gold);
+  text-shadow: 0 0 16px rgba(201,168,76,0.2);
 }
 
 .throw-hint {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--text-secondary);
-  margin-top: 4px;
+  margin-top: 6px;
+  line-height: 1.5;
 }
 
-/* 铜钱区域 */
+/* Coins Area */
 .coins-area {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 #coins-display {
   display: flex;
-  gap: 20px;
+  gap: 24px;
   justify-content: center;
-  min-height: 90px;
+  min-height: 100px;
   align-items: center;
 }
 
 /* ============================================================
-   仿真铜钱 - 圆形方孔古铜钱
+   Coins — Ornate ancient copper
    ============================================================ */
 .coin {
-  width: 80px;
-  height: 80px;
+  width: 84px;
+  height: 84px;
   border-radius: 50%;
   position: relative;
   display: flex;
@@ -335,154 +552,127 @@ body {
   cursor: default;
   user-select: none;
   -webkit-user-select: none;
-  /* 金属质感 */
-  background: radial-gradient(ellipse at 30% 30%, #D4A843, #B8860B 40%, #8B6914 70%, #6B4F10 100%);
+  background: radial-gradient(ellipse at 30% 25%, #e8c050, #c9a030 30%, #9a7520 55%, #6a5010 80%, #4a3808 100%);
   box-shadow:
-    0 2px 8px rgba(0,0,0,0.3),
-    inset 0 1px 2px rgba(255,220,130,0.4),
-    inset 0 -2px 4px rgba(0,0,0,0.2);
-  border: 2.5px solid #7A5A0B;
+    0 4px 16px rgba(0,0,0,0.6),
+    0 0 24px rgba(201,168,76,0.2),
+    inset 0 2px 4px rgba(255,220,120,0.35),
+    inset 0 -3px 6px rgba(0,0,0,0.3);
+  border: 2px solid rgba(201,168,76,0.4);
   transition: transform 0.15s;
-  perspective: 200px;
+  perspective: 300px;
 }
 
-/* 方孔 */
+/* Square hole */
 .coin::before {
   content: '';
   position: absolute;
   width: 18px;
   height: 18px;
-  background: var(--bg-color);
-  border: 2px solid #6B4F10;
+  background: var(--bg-deep);
+  border: 2px solid rgba(100,80,20,0.6);
   border-radius: 2px;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.6);
 }
 
-/* 铜钱上的文字 - 字面（正面） */
 .coin-heads::before {
-  background: var(--bg-color);
+  background: var(--bg-deep);
 }
 
 .coin-heads .coin-text {
   position: absolute;
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  color: #4A3500;
-  text-shadow: 0 0.5px 0 rgba(255,220,130,0.3);
+  color: #3a2800;
+  text-shadow: 0 0.5px 0 rgba(255,220,100,0.2);
 }
 
-.coin-heads .coin-text-top { top: 8px; }
-.coin-heads .coin-text-bottom { bottom: 8px; }
-.coin-heads .coin-text-left { left: 8px; }
-.coin-heads .coin-text-right { right: 8px; }
+.coin-heads .coin-text-top { top: 9px; }
+.coin-heads .coin-text-bottom { bottom: 9px; }
+.coin-heads .coin-text-left { left: 10px; }
+.coin-heads .coin-text-right { right: 10px; }
 
-/* 背面 - 光滑无字，双纹装饰 */
 .coin-tails {
-  background: radial-gradient(ellipse at 30% 30%, #C49835, #A07818 40%, #7A5A12 70%, #5C4210 100%);
+  background: radial-gradient(ellipse at 30% 25%, #c49835, #9a7818 35%, #6a5012 60%, #4a3810 85%, #3a2808 100%);
 }
 
 .coin-tails::before {
-  background: var(--bg-color);
-  border-color: #5C4210;
+  background: var(--bg-deep);
+  border-color: rgba(70,55,15,0.6);
 }
 
-.coin-tails .coin-label {
-  position: absolute;
-  bottom: -22px;
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-}
-
+.coin-tails .coin-label,
 .coin-heads .coin-label {
   position: absolute;
-  bottom: -22px;
+  bottom: -24px;
   font-size: 0.7rem;
-  color: var(--text-secondary);
+  color: var(--text-dim);
 }
 
-/* 铜钱边缘纹路 */
+/* Edge pattern */
 .coin::after {
   content: '';
   position: absolute;
-  width: 74px;
-  height: 74px;
+  width: 76px;
+  height: 76px;
   border-radius: 50%;
-  border: 1.5px dashed rgba(255,220,130,0.2);
+  border: 1px dashed rgba(255,220,100,0.12);
   pointer-events: none;
 }
 
-/* 摇动动画 */
-@keyframes coinFlip {
-  0% { transform: rotateX(0deg) rotateY(0deg); }
-  25% { transform: rotateX(180deg) rotateY(90deg); }
-  50% { transform: rotateX(360deg) rotateY(180deg); }
-  75% { transform: rotateX(180deg) rotateY(270deg); }
-  100% { transform: rotateX(0deg) rotateY(360deg); }
-}
-
-@keyframes coinBounce {
-  0% { transform: translateY(0) scale(1); }
-  30% { transform: translateY(-30px) scale(1.05); }
-  50% { transform: translateY(-15px) scale(1); }
-  70% { transform: translateY(-8px) scale(0.98); }
-  100% { transform: translateY(0) scale(1); }
-}
-
-@keyframes coinShake {
-  0%, 100% { transform: rotate(0deg); }
-  20% { transform: rotate(-15deg); }
-  40% { transform: rotate(12deg); }
-  60% { transform: rotate(-8deg); }
-  80% { transform: rotate(5deg); }
-}
-
 .coin-flipping {
-  animation: coinFlip 0.6s ease-in-out;
+  animation: coinFlip 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .coin-bouncing {
-  animation: coinBounce 0.5s ease-out;
+  animation: coinBounce 0.6s ease-out;
 }
 
 .coin-placeholder {
-  width: 80px;
-  height: 80px;
+  width: 84px;
+  height: 84px;
   border-radius: 50%;
   border: 2px dashed var(--border-color);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #BCAAA4;
+  color: var(--text-dim);
   font-size: 1.5rem;
+  animation: pulseGlow 2s ease-in-out infinite;
 }
 
-/* 结果文字 */
+/* Result text */
 .throw-result {
   text-align: center;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: var(--text-primary);
   min-height: 28px;
-  margin-top: 8px;
+  margin-top: 10px;
 }
 
 .throw-result.changing {
-  color: var(--accent-gold);
+  color: var(--gold-bright);
+  text-shadow: 0 0 12px rgba(201,168,76,0.3);
 }
 
-/* 预览区 */
+/* Preview */
 .throw-preview {
   background: var(--bg-card);
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 14px;
+  padding: 18px;
   border: 1px solid var(--border-color);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .preview-title {
   text-align: center;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  margin-bottom: 12px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .preview-line {
@@ -494,21 +684,12 @@ body {
 }
 
 .yao-placeholder {
-  font-size: 0.85rem;
-  color: #BCAAA4;
-}
-
-/* 自动摇卦提示 */
-.auto-status {
-  text-align: center;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  margin-bottom: 16px;
-  min-height: 24px;
+  font-size: 0.82rem;
+  color: var(--text-dim);
 }
 
 /* ============================================================
-   爻线渲染
+   Yao Lines
    ============================================================ */
 .yao-line, .yao-small {
   display: flex;
@@ -518,23 +699,17 @@ body {
   position: relative;
 }
 
-.yao-line {
-  width: 56px;
-  height: 18px;
-}
-
-.yao-small {
-  width: 50px;
-  height: 14px;
-}
+.yao-line { width: 56px; height: 18px; }
+.yao-small { width: 50px; height: 14px; }
 
 .yao-yang { gap: 0; }
 
 .yao-yang .yang-bar {
   width: 100%;
   height: 6px;
-  background: var(--accent-red);
-  border-radius: 2px;
+  background: linear-gradient(90deg, var(--gold-dim), var(--gold), var(--gold-dim));
+  border-radius: 3px;
+  box-shadow: 0 0 6px rgba(201,168,76,0.2);
 }
 
 .yao-small .yang-bar { height: 4px; }
@@ -544,8 +719,9 @@ body {
 .yao-yin .yin-bar {
   flex: 1;
   height: 6px;
-  background: var(--accent-red);
-  border-radius: 2px;
+  background: linear-gradient(90deg, var(--gold-dim), var(--gold), var(--gold-dim));
+  border-radius: 3px;
+  box-shadow: 0 0 6px rgba(201,168,76,0.2);
 }
 
 .yao-small .yin-bar { height: 4px; }
@@ -557,7 +733,8 @@ body {
   right: -18px;
   font-size: 0.75rem;
   font-weight: 700;
-  color: var(--accent-gold);
+  color: var(--gold-bright);
+  text-shadow: 0 0 8px rgba(232,200,74,0.4);
 }
 
 .yao-small .change-marker {
@@ -566,10 +743,11 @@ body {
 }
 
 /* ============================================================
-   排盘结果
+   Result Screen — Ancient Scroll
    ============================================================ */
 .result-screen {
-  padding-top: 16px;
+  padding-top: 12px;
+  animation: fadeInUp 0.6s ease-out;
 }
 
 .result-header {
@@ -578,171 +756,191 @@ body {
 }
 
 .result-header h2 {
-  font-size: 1.1rem;
-  color: var(--accent-red);
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.result-datetime {
+  font-size: 0.78rem;
+  color: var(--text-dim);
   margin-bottom: 8px;
 }
 
 .gua-name {
-  font-size: 1.3rem;
+  font-size: 1.35rem;
   font-weight: 700;
-  color: var(--accent-red);
+  color: var(--gold);
+  text-shadow: 0 0 16px rgba(201,168,76,0.25);
 }
 
 .palace-label {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--text-secondary);
   margin-left: 4px;
 }
 
 .arrow {
   font-size: 1.2rem;
-  color: var(--accent-gold);
+  color: var(--gold-dim);
   margin: 0 8px;
 }
 
 .result-trigrams {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
   text-align: center;
   margin-bottom: 16px;
 }
 
-/* 排盘表格 */
+/* Capture area — scroll-like */
+.capture-area {
+  background:
+    linear-gradient(180deg, rgba(18,18,36,0.95) 0%, rgba(12,12,24,0.98) 100%);
+  padding: 20px 14px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  position: relative;
+}
+
+.capture-area::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%; transform: translateX(-50%);
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+  border-radius: 0 0 4px 4px;
+}
+
+/* Paipan Table */
 .paipan-table {
-  background: var(--bg-card);
-  border-radius: 12px;
+  background: rgba(201,168,76,0.03);
+  border-radius: 10px;
   padding: 10px 6px;
   border: 1px solid var(--border-color);
-  margin-bottom: 20px;
-  overflow-x: auto;
+  margin-bottom: 16px;
 }
 
 .paipan-row {
   display: flex;
   align-items: center;
-  padding: 5px 2px;
+  padding: 6px 2px;
   gap: 1px;
 }
 
 .paipan-header {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
+  font-size: 0.72rem;
+  color: var(--text-dim);
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 8px;
   margin-bottom: 4px;
+  letter-spacing: 0.05em;
 }
 
-.col-spirit { width: 36px; font-size: 0.75rem; text-align: center; flex-shrink: 0; }
+.col-spirit { width: 36px; font-size: 0.75rem; text-align: center; flex-shrink: 0; color: var(--text-secondary); }
 .col-relation { width: 32px; font-size: 0.75rem; text-align: center; flex-shrink: 0; }
-.col-branch { width: 34px; font-size: 0.75rem; text-align: center; flex-shrink: 0; }
+.col-branch { width: 34px; font-size: 0.75rem; text-align: center; flex-shrink: 0; color: var(--text-secondary); }
 .col-yao { flex: 1; display: flex; justify-content: center; min-width: 44px; }
-.col-marker { width: 18px; font-size: 0.75rem; font-weight: 700; text-align: center; color: var(--accent-gold); flex-shrink: 0; }
-.col-branch2 { width: 20px; font-size: 0.7rem; text-align: center; flex-shrink: 0; }
+.col-marker { width: 18px; font-size: 0.75rem; font-weight: 700; text-align: center; color: var(--gold-bright); flex-shrink: 0; }
+.col-branch2 { width: 20px; font-size: 0.7rem; text-align: center; flex-shrink: 0; color: var(--text-secondary); }
 .col-relation2 { width: 28px; font-size: 0.7rem; text-align: center; flex-shrink: 0; }
 
 .trigram-divider {
   height: 1px;
-  background: var(--border-color);
+  background: linear-gradient(90deg, transparent, var(--border-color), transparent);
   margin: 4px 0;
-}
-
-/* 截图区域 */
-.capture-area {
-  background: var(--bg-color);
-  padding: 16px 12px 12px;
-  border-radius: 12px;
 }
 
 .capture-watermark {
   text-align: center;
-  font-size: 0.7rem;
-  color: #BCAAA4;
-  margin-top: 12px;
-  letter-spacing: 0.1em;
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  margin-top: 14px;
+  letter-spacing: 0.15em;
 }
 
+/* Result Footer */
 .result-footer {
   text-align: center;
   display: flex;
-  gap: 12px;
+  gap: 10px;
   justify-content: center;
   margin-top: 16px;
+  flex-wrap: wrap;
 }
 
 .btn-save {
-  padding: 12px 28px;
-  background: var(--accent-gold);
-  color: white;
+  padding: 10px 22px;
+  background: linear-gradient(135deg, var(--gold-dim), var(--gold));
+  color: #0a0a10;
   border: none;
   border-radius: 10px;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.15s;
+  font-family: inherit;
 }
 
 .btn-save:active { transform: scale(0.95); }
-.btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .btn-restart {
-  padding: 12px 28px;
-  background: var(--text-secondary);
-  color: white;
-  border: none;
+  padding: 10px 22px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 10px;
-  font-size: 1rem;
+  font-size: 0.9rem;
   cursor: pointer;
   transition: transform 0.15s;
+  font-family: inherit;
 }
 
 .btn-restart:active { transform: scale(0.95); }
 
-/* ============================================================
-   占事输入框
-   ============================================================ */
-.question-input {
-  margin-top: 20px;
-  margin-bottom: 16px;
-  text-align: left;
-}
-
-.question-input label {
-  display: block;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-  text-align: center;
-}
-
-.question-input textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border-color);
+.btn-copy-prompt {
+  padding: 10px 18px;
+  background: transparent;
+  color: var(--gold);
+  border: 1px solid var(--gold-dim);
   border-radius: 10px;
-  background: white;
-  font-size: 0.9rem;
-  color: var(--text-primary);
-  resize: none;
-  font-family: inherit;
-  line-height: 1.5;
-}
-
-.question-input textarea::placeholder {
-  color: #BCAAA4;
   font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.3s;
+  font-family: inherit;
 }
 
-.question-input textarea:focus {
-  outline: none;
-  border-color: var(--accent-gold);
+.btn-copy-prompt:hover { border-color: var(--gold); }
+.btn-copy-prompt:active { transform: scale(0.95); }
+
+.copy-hint {
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--gold);
+  margin-top: 8px;
+  animation: fadeInOut 2s ease-in-out;
 }
 
 /* ============================================================
-   AI 解读区域
+   AI Section
    ============================================================ */
 .ai-section {
-  margin-top: 16px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color);
+}
+
+.ai-section-title {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .ai-controls {
@@ -758,73 +956,45 @@ body {
   padding: 8px 10px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  background: white;
-  font-size: 0.85rem;
+  background: var(--bg-card);
+  font-size: 0.82rem;
   color: var(--text-primary);
+  font-family: inherit;
 }
 
-.btn-copy-prompt {
-  padding: 12px 20px;
-  background: var(--accent-gold);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.15s;
-}
-
-.btn-copy-prompt:active { transform: scale(0.95); }
-
-.copy-hint {
-  text-align: center;
-  font-size: 0.8rem;
-  color: var(--accent-green);
-  margin-top: 8px;
-  animation: fadeInOut 2s ease-in-out;
-}
-
-@keyframes fadeInOut {
-  0% { opacity: 0; }
-  15% { opacity: 1; }
-  75% { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-.ai-section-title {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  margin-bottom: 10px;
-  padding-bottom: 6px;
-  border-bottom: 1px dashed var(--border-color);
+.ai-select:focus {
+  outline: none;
+  border-color: var(--gold);
 }
 
 .btn-ai {
-  padding: 8px 20px;
-  background: var(--accent-green);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.15s;
-  white-space: nowrap;
-}
-
-.btn-ai:active { transform: scale(0.95); }
-.btn-ai:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.btn-ai-stop {
-  padding: 8px 16px;
-  background: #C62828;
-  color: white;
+  padding: 8px 18px;
+  background: linear-gradient(135deg, #2a5a3a, var(--jade));
+  color: #d0f0d0;
   border: none;
   border-radius: 8px;
   font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.3s;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.btn-ai:hover { box-shadow: 0 0 12px rgba(58,122,90,0.3); }
+.btn-ai:active { transform: scale(0.95); }
+.btn-ai:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-ai-stop {
+  padding: 8px 14px;
+  background: var(--crimson);
+  color: #ffd0d0;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.82rem;
   cursor: pointer;
   white-space: nowrap;
+  font-family: inherit;
 }
 
 .btn-ai-settings {
@@ -832,25 +1002,28 @@ body {
   height: 36px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  background: white;
+  background: var(--bg-card);
   font-size: 1.1rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  color: var(--text-secondary);
+  transition: border-color 0.3s;
 }
 
+.btn-ai-settings:hover { border-color: var(--gold-dim); }
 .btn-ai-settings:active { transform: scale(0.95); }
 
 .ai-output {
-  margin-top: 12px;
-  padding: 14px 16px;
-  background: white;
+  margin-top: 14px;
+  padding: 16px 18px;
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 10px;
-  font-size: 0.88rem;
-  line-height: 1.7;
+  border-radius: 12px;
+  font-size: 0.86rem;
+  line-height: 1.8;
   color: var(--text-primary);
   white-space: pre-wrap;
   word-break: break-word;
@@ -859,12 +1032,14 @@ body {
 }
 
 /* ============================================================
-   设置弹窗
+   Settings Modal
    ============================================================ */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.4);
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -873,14 +1048,15 @@ body {
 }
 
 .modal-content {
-  background: var(--bg-color);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
   border-radius: 16px;
   width: 100%;
   max-width: 440px;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  box-shadow: 0 12px 48px rgba(0,0,0,0.5), 0 0 30px rgba(201,168,76,0.08);
 }
 
 .modal-header {
@@ -892,22 +1068,23 @@ body {
 }
 
 .modal-header h3 {
-  font-size: 1.05rem;
-  color: var(--accent-red);
+  font-size: 1rem;
+  color: var(--gold);
+  letter-spacing: 0.05em;
 }
 
 .modal-close {
   background: none;
   border: none;
   font-size: 1.5rem;
-  color: var(--text-secondary);
+  color: var(--text-dim);
   cursor: pointer;
   padding: 0 4px;
   line-height: 1;
 }
 
 .settings-body {
-  padding: 12px 20px;
+  padding: 14px 20px;
   overflow-y: auto;
   flex: 1;
 }
@@ -927,72 +1104,94 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .settings-provider-name {
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   color: var(--text-primary);
 }
 
 .settings-provider-hint {
-  font-size: 0.75rem;
-  color: white;
-  background: var(--accent-green);
-  padding: 1px 8px;
+  font-size: 0.72rem;
+  color: #0a0a10;
+  background: linear-gradient(135deg, var(--gold-dim), var(--gold));
+  padding: 2px 10px;
   border-radius: 10px;
+  font-weight: 600;
 }
 
 .settings-field {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .settings-field label {
   width: 60px;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
+  font-size: 0.78rem;
+  color: var(--text-dim);
   flex-shrink: 0;
 }
 
 .settings-field input,
 .settings-field select {
   flex: 1;
-  padding: 6px 10px;
+  padding: 7px 10px;
   border: 1px solid var(--border-color);
   border-radius: 6px;
   font-size: 0.82rem;
-  background: white;
+  background: var(--bg-card);
   color: var(--text-primary);
+  font-family: inherit;
 }
 
 .settings-field input:focus,
 .settings-field select:focus {
   outline: none;
-  border-color: var(--accent-gold);
+  border-color: var(--gold);
+  box-shadow: 0 0 8px rgba(201,168,76,0.15);
 }
 
 .modal-footer {
-  padding: 12px 20px;
+  padding: 14px 20px;
   border-top: 1px solid var(--border-color);
   text-align: center;
 }
 
 /* ============================================================
-   响应式
+   Responsive
    ============================================================ */
 @media (min-width: 640px) {
   .app-container { padding: 24px; }
-  .coin { width: 96px; height: 96px; }
+  .coin { width: 100px; height: 100px; }
   .coin::before { width: 22px; height: 22px; }
-  .coin::after { width: 88px; height: 88px; }
-  .coin-placeholder { width: 96px; height: 96px; }
+  .coin::after { width: 92px; height: 92px; }
+  .coin-placeholder { width: 100px; height: 100px; }
   .yao-line { width: 100px; }
-  .col-spirit { width: 52px; font-size: 0.9rem; }
-  .col-relation { width: 44px; font-size: 0.9rem; }
-  .col-branch { width: 42px; font-size: 0.9rem; }
-  .col-marker { width: 28px; font-size: 0.9rem; }
+  .col-spirit { width: 52px; font-size: 0.88rem; }
+  .col-relation { width: 44px; font-size: 0.88rem; }
+  .col-branch { width: 42px; font-size: 0.88rem; }
+  .col-marker { width: 28px; font-size: 0.88rem; }
+  .app-title { font-size: 2.8rem; }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-dim);
 }

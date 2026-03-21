@@ -506,7 +506,7 @@ async function saveResultImage() {
   try {
     const captureEl = $('capture-area');
     const canvas = await html2canvas(captureEl, {
-      backgroundColor: '#FDF6E3',
+      backgroundColor: '#0c0c18',
       scale: 2,
       useCORS: true,
       logging: false,
