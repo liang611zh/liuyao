@@ -593,12 +593,13 @@ body {
 .coin-heads .coin-text-right { right: 10px; }
 
 .coin-tails {
-  background: radial-gradient(ellipse at 30% 25%, #c49835, #9a7818 35%, #6a5012 60%, #4a3810 85%, #3a2808 100%);
+  background: radial-gradient(ellipse at 30% 25%, #7a6a5a, #4a3a2a 40%, #2a2018 70%, #1a1510 100%);
+  border-color: #3a2a1a;
 }
 
 .coin-tails::before {
   background: var(--bg-deep);
-  border-color: rgba(70,55,15,0.6);
+  border-color: rgba(40,30,10,0.6);
 }
 
 .coin-tails .coin-label,
