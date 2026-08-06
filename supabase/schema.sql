@@ -180,3 +180,139 @@ create policy "删除自己的卦例"
 -- 若将来要支持「补记占问」，只加一条限定 question 列的 UPDATE 策略，
 -- 不要直接开放整行。
 drop policy if exists "修改自己的卦例" on public.readings;
+
+
+-- ============================================================
+-- 用户资料
+-- ============================================================
+--
+-- 用户本身由 Supabase Auth 存在 auth.users：邮箱、注册时间、最后登录、
+-- 用哪个方式登录的，都在那里，不需要也不应该自建一张 users 表去重复它。
+--
+-- 但 auth.users 有两个限制，所以还需要这张 profiles：
+--   1. 前端拿 anon key 读不到 auth schema，只能通过 auth.getUser() 拿自己那条，
+--      没法在 SQL 里 join，也没法给应用加字段。
+--   2. 昵称、头像这类「应用自己的」字段不该塞进 Auth 的元数据。
+--
+-- email 在这里是一份副本，由触发器与 auth.users 保持同步，方便直接查询；
+-- 真实来源始终是 auth.users。
+
+create table if not exists public.profiles (
+  id          uuid primary key references auth.users (id) on delete cascade,
+  email       text,                    -- auth.users.email 的同步副本
+  nickname    text,
+  avatar_url  text,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+
+  constraint profiles_nickname_len check (
+    nickname is null or char_length(nickname) between 1 and 40
+  ),
+  constraint profiles_avatar_len check (
+    avatar_url is null or char_length(avatar_url) <= 500
+  )
+);
+
+-- ------------------------------------------------------------
+-- 注册时自动建档
+-- ------------------------------------------------------------
+--
+-- Google / GitHub 登录会带回昵称和头像，直接采用；邮箱登录则拿 @ 前缀兜底。
+-- 邮箱变更时只同步 email 一列，不覆盖用户已经改过的昵称。
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, email, nickname, avatar_url)
+  values (
+    new.id,
+    new.email,
+    coalesce(
+      new.raw_user_meta_data ->> 'full_name',
+      new.raw_user_meta_data ->> 'name',
+      new.raw_user_meta_data ->> 'user_name',
+      split_part(coalesce(new.email, ''), '@', 1)
+    ),
+    new.raw_user_meta_data ->> 'avatar_url'
+  )
+  on conflict (id) do update
+    set email      = excluded.email,
+        updated_at = now();
+  return new;
+end;
+$$;
+
+revoke all on function public.handle_new_user() from public;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert or update of email on auth.users
+  for each row execute function public.handle_new_user();
+
+-- updated_at 由数据库维护：客户端只被授权改 nickname 一列，改不到这里
+create or replace function public.touch_profiles_updated_at()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+revoke all on function public.touch_profiles_updated_at() from public;
+
+drop trigger if exists profiles_touch_updated_at on public.profiles;
+create trigger profiles_touch_updated_at
+  before update on public.profiles
+  for each row execute function public.touch_profiles_updated_at();
+
+-- 给建表之前就已注册的用户补档
+insert into public.profiles (id, email, nickname, avatar_url)
+select
+  u.id,
+  u.email,
+  coalesce(
+    u.raw_user_meta_data ->> 'full_name',
+    u.raw_user_meta_data ->> 'name',
+    u.raw_user_meta_data ->> 'user_name',
+    split_part(coalesce(u.email, ''), '@', 1)
+  ),
+  u.raw_user_meta_data ->> 'avatar_url'
+from auth.users u
+on conflict (id) do nothing;
+
+-- ------------------------------------------------------------
+-- 行级安全
+-- ------------------------------------------------------------
+
+alter table public.profiles enable row level security;
+
+revoke all on public.profiles from anon;
+grant select on public.profiles to authenticated;
+
+-- 列级授权：只放开 nickname。RLS 策略管的是「哪些行」，管不了「哪些列」，
+-- 不这样限制的话用户能把自己的 email 副本改成任意值，与 auth.users 脱节。
+grant update (nickname) on public.profiles to authenticated;
+
+drop policy if exists "读取自己的资料" on public.profiles;
+create policy "读取自己的资料"
+  on public.profiles for select
+  to authenticated
+  using (auth.uid() = id);
+
+drop policy if exists "修改自己的资料" on public.profiles;
+create policy "修改自己的资料"
+  on public.profiles for update
+  to authenticated
+  using (auth.uid() = id)
+  with check (auth.uid() = id);
+
+-- 刻意不开 INSERT / DELETE 策略：建档由触发器完成（SECURITY DEFINER 越过 RLS），
+-- 注销由删除 auth.users 级联触发。用户无法凭空造出资料行。

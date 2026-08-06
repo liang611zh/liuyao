@@ -875,6 +875,8 @@ function renderAccountModal(message) {
     email.textContent = user.email || user.id;
     body.appendChild(email);
 
+    body.appendChild(buildNicknameField());
+
     const out = document.createElement('button');
     out.type = 'button';
     out.className = 'btn-restart btn-account-action';
@@ -976,6 +978,63 @@ function renderAccountModal(message) {
 
   body.appendChild(send);
   body.appendChild(status);
+}
+
+// 昵称编辑。资料由数据库触发器在注册时自动建档，
+// Google / GitHub 登录会带回昵称，邮箱登录则用 @ 前缀兜底。
+function buildNicknameField() {
+  const wrap = document.createElement('div');
+
+  const field = document.createElement('div');
+  field.className = 'settings-field';
+  const label = document.createElement('label');
+  label.setAttribute('for', 'account-nickname');
+  label.textContent = t('account_nickname_label');
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.id = 'account-nickname';
+  input.maxLength = 40;
+  input.placeholder = t('account_nickname_placeholder');
+  const profile = getCurrentProfile();
+  input.value = profile && profile.nickname ? profile.nickname : '';
+  field.appendChild(label);
+  field.appendChild(input);
+  wrap.appendChild(field);
+
+  const status = document.createElement('div');
+  status.className = 'account-status';
+
+  const save = document.createElement('button');
+  save.type = 'button';
+  save.className = 'btn-secondary btn-account-action';
+  save.textContent = t('btn_save_nickname');
+  const submit = async () => {
+    save.disabled = true;
+    status.textContent = '';
+    try {
+      await updateNickname(input.value);
+      status.textContent = t('account_nickname_saved');
+      updateAccountButton();
+    } catch (err) {
+      status.textContent = err.message;
+    } finally {
+      save.disabled = false;
+    }
+  };
+  save.addEventListener('click', submit);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+
+  wrap.appendChild(save);
+  wrap.appendChild(status);
+
+  // 资料可能还没拉取（刚恢复会话时），拉到再回填
+  if (!profile) {
+    fetchProfile()
+      .then(p => { if (p && p.nickname && !input.value) input.value = p.nickname; })
+      .catch(err => console.error('fetch profile failed:', err));
+  }
+
+  return wrap;
 }
 
 function makeAccountNote(text) {

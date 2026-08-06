@@ -16,6 +16,7 @@ const SUPABASE_SDK_SRC = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/d
 let sbClient = null;
 let sbSdkPromise = null;
 let currentUser = null;
+let currentProfile = null;
 // UI 订阅登录状态变化
 const accountListeners = [];
 
@@ -25,6 +26,17 @@ function isCloudConfigured() {
 
 function getCurrentUser() {
   return currentUser;
+}
+
+function getCurrentProfile() {
+  return currentProfile;
+}
+
+// 显示用名字：昵称 → 邮箱 → 用户 id
+function getDisplayName() {
+  if (currentProfile && currentProfile.nickname) return currentProfile.nickname;
+  if (currentUser) return currentUser.email || currentUser.id;
+  return '';
 }
 
 function onAccountChange(fn) {
@@ -100,6 +112,7 @@ async function getSupabaseClient() {
       // 登录后把匿名期间攒下的本地卦例搬上云
       syncLocalToCloud().catch(err => console.error('sync failed:', err));
     } else if (!currentUser && prevUser) {
+      currentProfile = null;
       resetAnalyticsIdentity();
     }
     notifyAccountChange();
@@ -183,9 +196,53 @@ async function signOut() {
   if (!client) return;
   await client.auth.signOut();
   currentUser = null;
+  currentProfile = null;
   resetAnalyticsIdentity();
   notifyAccountChange();
   track('account_signed_out');
+}
+
+// ============================================================
+// 用户资料
+// ============================================================
+//
+// 用户本身由 Supabase Auth 存在 auth.users，前端读不到那张表，
+// 只能通过 auth.getUser() 拿自己那条。昵称、头像这类应用字段放在
+// public.profiles，注册时由数据库触发器自动建档。
+
+async function fetchProfile() {
+  const client = await getSupabaseClient();
+  if (!client || !currentUser) return null;
+
+  const { data, error } = await client
+    .from('profiles')
+    .select('id, email, nickname, avatar_url')
+    .eq('id', currentUser.id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+
+  currentProfile = data;
+  return data;
+}
+
+// 只有 nickname 一列被授予 update 权限（见 schema.sql 的列级 grant），
+// 改 email 或 avatar_url 会被数据库直接拒绝
+async function updateNickname(nickname) {
+  const client = await getSupabaseClient();
+  if (!client || !currentUser) return null;
+
+  const trimmed = (nickname || '').trim();
+  const { data, error } = await client
+    .from('profiles')
+    .update({ nickname: trimmed || null })
+    .eq('id', currentUser.id)
+    .select('id, email, nickname, avatar_url')
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+
+  if (data) currentProfile = data;
+  track('profile_nickname_updated');
+  return currentProfile;
 }
 
 // ============================================================
