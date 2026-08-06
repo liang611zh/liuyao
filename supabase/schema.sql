@@ -2,9 +2,11 @@
 -- 六爻排盘 - Supabase 表结构
 -- ============================================================
 --
--- 在 Supabase 控制台的 SQL Editor 里整份执行即可（可重复执行）。
+-- 在 Supabase 控制台的 SQL Editor 里整份执行（可重复执行，升级也走这一份）。
 --
--- 设计要点：这里存的是「起卦时的原始事实」，不是算出来的排盘结果。
+-- ── 存什么 ──
+--
+-- 这里存的是「起卦时的原始事实」，不是算出来的排盘结果。
 --
 --   · yao_values  —— 六个爻值（6/7/8/9），起卦的唯一原始输入
 --   · day_ganzhi / shichen / xun_kong —— 起卦当时的干支文本快照
@@ -17,6 +19,18 @@
 --
 -- 卦名、纳甲、六亲、世应由 yao_values 纯函数推出；
 -- 六神由 day_ganzhi 的天干推出；旬空直接用 xun_kong。全部在客户端重算。
+--
+-- ── 威胁模型 ──
+--
+-- anon key 是公开的（前端 SDK 必须带着它），而且允许自助注册。
+-- 因此必须假设「任何人都能拿到一个合法的已登录身份」，防线全部落在这个文件里：
+--
+--   · RLS 策略      —— 每人只能读写自己的行
+--   · 撤销 anon 授权 —— 未登录身份连表都碰不到，不依赖策略兜底
+--   · 每用户配额     —— 挡住「注册一个号然后写爆你的免费额度」
+--   · 无 UPDATE 策略 —— 卦例一旦落库不可篡改
+--
+-- 客户端的任何校验都不算数：请求可以被直接构造，只有这里的约束是真的。
 
 create extension if not exists "pgcrypto";
 
@@ -26,7 +40,14 @@ create extension if not exists "pgcrypto";
 
 create table if not exists public.readings (
   id          uuid primary key default gen_random_uuid(),
-  user_id     uuid not null references auth.users (id) on delete cascade,
+
+  -- 由数据库按当前登录身份填入，客户端无法伪造成别人
+  user_id     uuid not null default auth.uid()
+                references auth.users (id) on delete cascade,
+
+  -- 客户端生成的记录标识。用于让「补传本地卦例」这件事可重复执行：
+  -- 多标签页同时登录、上传超时后重试，都不会在历史里留下重复条目。
+  client_id   text,
 
   -- 起卦时刻。仅用于排序，干支一律以下面的文本快照为准
   cast_at     timestamptz not null,
@@ -48,46 +69,114 @@ create table if not exists public.readings (
   lang        text,                   -- 起卦时的界面语言
 
   constraint readings_yao_values_len check (array_length(yao_values, 1) = 6),
+  -- <@ 判断「所有元素都属于该集合」。但数组里若混入 NULL，<@ 结果为 NULL，
+  -- 而 CHECK 约束遇 NULL 视为通过 —— 所以必须另外把 NULL 挡掉
   constraint readings_yao_values_range check (
     yao_values <@ array[6, 7, 8, 9]::smallint[]
   ),
+  constraint readings_yao_values_no_null check (
+    array_position(yao_values, null) is null
+  ),
   constraint readings_mode_valid check (mode in ('random', 'manual')),
   constraint readings_day_ganzhi_len check (char_length(day_ganzhi) = 2),
+  constraint readings_shichen_len check (char_length(shichen) = 1),
   constraint readings_xun_kong_len check (char_length(xun_kong) = 2),
+  constraint readings_cast_at_local_len check (char_length(cast_at_local) <= 32),
+  constraint readings_lang_len check (lang is null or char_length(lang) <= 16),
+  constraint readings_client_id_len check (client_id is null or char_length(client_id) <= 64),
   constraint readings_question_len check (question is null or char_length(question) <= 2000)
 );
+
+-- 升级路径：上面的 create 对已存在的表是空操作，新增列要单独补
+alter table public.readings add column if not exists client_id text;
+alter table public.readings alter column user_id set default auth.uid();
 
 -- 历史列表按时间倒序翻页
 create index if not exists readings_user_cast_at_idx
   on public.readings (user_id, cast_at desc);
 
+-- 补传本地卦例的幂等键：同一用户的同一 client_id 只会留下一行。
+-- 刻意不用 partial index（... where client_id is not null）—— 那样 ON CONFLICT
+-- 无法推断出仲裁索引，upsert 会直接报错。普通唯一索引已经够用：
+-- PostgreSQL 默认认为 NULL 互不相等，所以 client_id 为空的老数据不会互相冲突。
+create unique index if not exists readings_user_client_id_key
+  on public.readings (user_id, client_id);
+
 -- ------------------------------------------------------------
--- 行级安全：每个人只能看见和操作自己的卦例
+-- 每用户配额
+-- ------------------------------------------------------------
+--
+-- anon key 公开 + 允许自助注册 = 任何人都能拿到合法身份往里写。
+-- RLS 只保证「写进自己的行」，不限制写多少行。没有这道闸门，
+-- 一个脚本就能把免费层的 500MB 塞满。
+--
+-- 单条记录约 0.5KB，1000 条约 0.5MB/人。要调整改下面的常量即可。
+-- 这不能替代 Supabase 控制台里的注册频率限制，两者是不同层面的防护。
+
+create or replace function public.enforce_readings_quota()
+returns trigger
+language plpgsql
+security definer            -- 需要越过 RLS 才能数全这个用户的行
+set search_path = ''        -- 防止 search_path 劫持
+as $$
+declare
+  max_readings constant integer := 1000;
+  existing_count integer;
+begin
+  select count(*) into existing_count
+  from public.readings
+  where user_id = new.user_id;
+
+  if existing_count >= max_readings then
+    raise exception '卦例数量已达上限（% 条），请先删除一些旧记录', max_readings
+      using errcode = 'check_violation';
+  end if;
+
+  return new;
+end;
+$$;
+
+-- 触发器函数不需要调用方持有 EXECUTE 权限，撤销掉以免被当普通函数调用
+revoke all on function public.enforce_readings_quota() from public;
+
+drop trigger if exists readings_quota on public.readings;
+create trigger readings_quota
+  before insert on public.readings
+  for each row execute function public.enforce_readings_quota();
+
+-- ------------------------------------------------------------
+-- 行级安全
 -- ------------------------------------------------------------
 
 alter table public.readings enable row level security;
 
+-- 未登录身份不该以任何形式碰到这张表。RLS 策略本身已经拦得住
+-- （auth.uid() 为 NULL 时条件不成立），但少一层授权就少一次
+-- 「将来误加宽松策略导致全表泄露」的机会。
+revoke all on public.readings from anon;
+grant select, insert, delete on public.readings to authenticated;
+
 drop policy if exists "读取自己的卦例" on public.readings;
 create policy "读取自己的卦例"
   on public.readings for select
+  to authenticated
   using (auth.uid() = user_id);
 
 drop policy if exists "写入自己的卦例" on public.readings;
 create policy "写入自己的卦例"
   on public.readings for insert
-  with check (auth.uid() = user_id);
-
-drop policy if exists "修改自己的卦例" on public.readings;
-create policy "修改自己的卦例"
-  on public.readings for update
-  using (auth.uid() = user_id)
+  to authenticated
   with check (auth.uid() = user_id);
 
 drop policy if exists "删除自己的卦例" on public.readings;
 create policy "删除自己的卦例"
   on public.readings for delete
+  to authenticated
   using (auth.uid() = user_id);
 
--- user_id 不允许伪造：即使客户端漏传也由服务端补上当前登录用户
-alter table public.readings
-  alter column user_id set default auth.uid();
+-- 刻意不开 UPDATE 策略。
+-- 一是应用根本不改已有卦例（只有新增和删除）；
+-- 二是卦例本该不可篡改 —— 起完卦还能回头改爻值或占问，记录就失去意义了。
+-- 若将来要支持「补记占问」，只加一条限定 question 列的 UPDATE 策略，
+-- 不要直接开放整行。
+drop policy if exists "修改自己的卦例" on public.readings;

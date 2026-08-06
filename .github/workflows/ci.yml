@@ -113,19 +113,35 @@ jobs:
       - name: Scan for leaked secrets
         run: node scripts/scan-secrets.mjs
 
-      - name: Verify row level security is enabled
+      # anon key 是公开的且允许自助注册，所以必须假设任何人都能拿到合法身份。
+      # 防线全在 schema 里，这几条被删掉等于把所有用户的占问内容暴露出去。
+      - name: Verify database hardening
         run: |
-          if ! grep -q "enable row level security" supabase/schema.sql; then
-            echo "❌ readings table must have RLS enabled — without it any anon key can read every user's readings"
-            exit 1
-          fi
-          for op in select insert update delete; do
-            if ! grep -q "for $op" supabase/schema.sql; then
-              echo "❌ Missing RLS policy for $op"
-              exit 1
+          fail=0
+          need() {
+            if ! grep -q "$1" supabase/schema.sql; then
+              echo "❌ $2"
+              fail=1
             fi
+          }
+          need "enable row level security" \
+               "RLS 必须开启，否则任何拿到 anon key 的人都能读到全部用户的占问内容"
+          for op in select insert delete; do
+            need "for $op" "缺少 $op 的 RLS 策略"
           done
-          echo "✅ RLS enabled with policies for select/insert/update/delete"
+          need "revoke all on public.readings from anon" \
+               "必须撤销 anon 对 readings 的授权（纵深防御）"
+          need "enforce_readings_quota" \
+               "必须保留每用户配额触发器，否则一个脚本就能写爆免费额度"
+          need "set search_path = ''" \
+               "SECURITY DEFINER 函数必须锁定 search_path"
+          # UPDATE 策略是刻意不开的：卦例落库后不可篡改
+          if grep -qE "for update" supabase/schema.sql; then
+            echo "❌ 不应存在 UPDATE 策略 —— 卦例应当不可篡改"
+            fail=1
+          fi
+          [ $fail -eq 0 ] || exit 1
+          echo "✅ RLS、anon 撤权、配额触发器、search_path 均就位；无 UPDATE 策略"
 
       - name: Verify build-config rejects secrets
         run: |

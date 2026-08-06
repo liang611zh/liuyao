@@ -810,7 +810,7 @@ function buildHistoryRow(rec, item) {
   del.addEventListener('click', async () => {
     if (!confirm(t('history_confirm_delete'))) return;
     del.disabled = true;
-    await removeReading(rec.id);
+    await removeReading(rec);
     row.remove();
     track('history_reading_deleted');
     if (!$('history-list').children.length) showHistory();

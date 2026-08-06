@@ -194,6 +194,9 @@ async function signOut() {
 
 function recordToRow(rec) {
   return {
+    // 幂等键：多标签页同时登录、上传超时后重试都不会写出重复条目。
+    // user_id 不传 —— 由数据库的 default auth.uid() 填，客户端伪造不了别人的
+    client_id: rec.id,
     cast_at: rec.castAt,
     cast_at_local: rec.castAtLocal,
     yao_values: rec.yaoValues,
@@ -209,6 +212,9 @@ function recordToRow(rec) {
 function rowToRecord(row) {
   return {
     id: row.id,
+    // 云端行的 id 是数据库生成的 uuid，与本机那份记录的 id 不同。
+    // 带上 client_id 才能在删除云端记录时把本机的副本一并清掉
+    clientId: row.client_id || null,
     castAt: row.cast_at,
     castAtLocal: row.cast_at_local,
     yaoValues: row.yao_values,
@@ -235,17 +241,19 @@ async function fetchCloudReadings(limit = 100) {
   return data.map(rowToRecord).filter(isValidRecord);
 }
 
+// 用 upsert + 忽略冲突，让「同一条本地记录被传两次」变成空操作。
+// 冲突时不会返回行（on conflict do nothing），此时返回 null 表示「已经在云端了」。
 async function insertCloudReading(rec) {
   const client = await getSupabaseClient();
   if (!client || !currentUser) return null;
 
   const { data, error } = await client
     .from('readings')
-    .insert({ ...recordToRow(rec), user_id: currentUser.id })
+    .upsert(recordToRow(rec), { onConflict: 'user_id,client_id', ignoreDuplicates: true })
     .select()
-    .single();
+    .maybeSingle();
   if (error) throw new Error(error.message);
-  return rowToRecord(data);
+  return data ? rowToRecord(data) : null;
 }
 
 async function deleteCloudReading(id) {
@@ -292,7 +300,9 @@ async function persistReading(rec) {
 
   try {
     const saved = await insertCloudReading(rec);
-    if (saved) markLocalRecordsSynced([rec.id]);
+    // 没抛错就说明云端已经有这条了（本次插入的，或先前已传过撞了幂等键），
+    // 两种情况都该标记为已同步，否则会被无限重传
+    markLocalRecordsSynced([rec.id]);
     return saved || rec;
   } catch (err) {
     // 留在本地当待同步，下次登录或同步时补传
@@ -313,8 +323,16 @@ async function listReadings() {
   return { records: loadLocalHistory(), source: 'local' };
 }
 
-async function removeReading(id) {
+// 接受完整记录（或裸 id）。云端记录的 id 与本机副本的 id 不同，
+// 只删一边的话，下次断网回退到本地历史时被删的卦例会「复活」
+async function removeReading(recOrId) {
+  const isRecord = recOrId && typeof recOrId === 'object';
+  const id = isRecord ? recOrId.id : recOrId;
+  const clientId = isRecord ? recOrId.clientId : null;
+
   deleteLocalRecord(id);
+  if (clientId && clientId !== id) deleteLocalRecord(clientId);
+
   if (isCloudConfigured() && currentUser) {
     try { await deleteCloudReading(id); } catch (err) { console.error('cloud delete failed:', err); }
   }
