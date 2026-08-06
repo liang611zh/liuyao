@@ -101,19 +101,20 @@ function getConfiguredProviders() {
 // ============================================================
 
 function buildDivinationPrompt(reading, question, dateInfo) {
-  const { original, changed, lines, hasChanging } = reading;
+  const { original, changed, lines, hasChanging, timeInfo } = reading;
 
   const posNames = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
   let linesText = '';
   for (let i = 5; i >= 0; i--) {
     const l = lines[i];
-    let line = `${posNames[i]}：${l.spirit} | ${l.relation} | ${l.branch}${l.branchElement}`;
+    let line = `${posNames[i]}：${l.spirit} | ${l.relation} | ${l.stem}${l.branch}${l.branchElement}`;
+    if (l.isXunKong) line += '（空）';
     line += ` | ${l.isYang ? '阳' : '阴'}`;
     if (l.isChanging) line += `（动）`;
     if (l.isShi) line += ' [世]';
     if (l.isYing) line += ' [应]';
     if (l.isChanging && l.changedBranch) {
-      line += ` → 变：${l.changedRelation} ${l.changedBranch}`;
+      line += ` → 变：${l.changedRelation} ${l.changedBranch}${l.changedIsXunKong ? '（空）' : ''}`;
     }
     linesText += line + '\n';
   }
@@ -123,6 +124,9 @@ function buildDivinationPrompt(reading, question, dateInfo) {
 `;
   if (dateInfo) {
     prompt += `占卜时间：${dateInfo}\n`;
+  }
+  if (timeInfo) {
+    prompt += `日建：${timeInfo.dayBranch}　旬空：${timeInfo.xunKongStr}\n`;
   }
   if (question) {
     prompt += `占问之事：${question}\n`;
@@ -137,13 +141,16 @@ function buildDivinationPrompt(reading, question, dateInfo) {
   prompt += `
 六爻排盘（从上爻到初爻）：
 ${linesText}
+说明：本排盘未推月建（需节气历），如需论月令旺衰请据占卜时间自行推定。
+
 请从以下方面进行解读：
 1. 卦象总论：解释本卦含义${hasChanging ? '及变卦趋势' : ''}
 2. 世应分析：世爻与应爻的状态
 3. 用神分析：${question ? '根据所问之事确定用神并分析旺衰' : '分析各爻旺衰'}
 4. 动爻分析：${hasChanging ? '分析动爻变化及其影响' : '本卦无动爻，分析静卦特点'}
-5. 六神参考：结合六神辅助判断
-6. 综合判断：给出明确的判断和建议
+5. 旬空判断：结合上方旬空，说明逢空之爻的影响及出空时机
+6. 六神参考：结合六神辅助判断
+7. 综合判断：给出明确的判断和建议
 
 请用通俗易懂的语言解读，避免过于晦涩的术语。`;
 
@@ -302,6 +309,17 @@ async function* streamAI(providerId, prompt) {
 // 设置弹窗逻辑
 // ============================================================
 
+// 这些值来自用户输入（API Key / 端点 / 自定义模型名），拼进 innerHTML 前必须转义，
+// 否则一个引号就能把 value="" 属性截断，进而注入任意标签。
+function escapeHtml(str) {
+  return String(str)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 function renderSettingsModal() {
   const modal = document.getElementById('settings-modal');
   const body = document.getElementById('settings-body');
@@ -319,8 +337,8 @@ function renderSettingsModal() {
     let fieldsHTML = `
       <div class="settings-field">
         <label>${t('ai_api_key')}</label>
-        <input type="password" id="cfg-${id}-key" value="${config.apiKey || ''}"
-               placeholder="${t('ai_placeholder_key', { name: provider.name })}" />
+        <input type="password" id="cfg-${id}-key" value="${escapeHtml(config.apiKey || '')}"
+               placeholder="${escapeHtml(t('ai_placeholder_key', { name: provider.name }))}" />
       </div>
       <div class="settings-field">
         <label>${t('ai_model')}</label>
@@ -331,7 +349,7 @@ function renderSettingsModal() {
       : provider.models;
     for (const m of models) {
       const selected = (config.model || provider.defaultModel) === m ? 'selected' : '';
-      fieldsHTML += `<option value="${m}" ${selected}>${m}</option>`;
+      fieldsHTML += `<option value="${escapeHtml(m)}" ${selected}>${escapeHtml(m)}</option>`;
     }
     fieldsHTML += '</select></div>';
 
@@ -339,13 +357,13 @@ function renderSettingsModal() {
       fieldsHTML += `
         <div class="settings-field">
           <label>${t('ai_endpoint')}</label>
-          <input type="url" id="cfg-custom-endpoint" value="${config.endpoint || ''}"
-                 placeholder="${t('ai_placeholder_endpoint')}" />
+          <input type="url" id="cfg-custom-endpoint" value="${escapeHtml(config.endpoint || '')}"
+                 placeholder="${escapeHtml(t('ai_placeholder_endpoint'))}" />
         </div>
         <div class="settings-field">
           <label>${t('ai_model_name')}</label>
-          <input type="text" id="cfg-custom-modelname" value="${config.customModelName || ''}"
-                 placeholder="${t('ai_placeholder_model')}" />
+          <input type="text" id="cfg-custom-modelname" value="${escapeHtml(config.customModelName || '')}"
+                 placeholder="${escapeHtml(t('ai_placeholder_model'))}" />
         </div>
       `;
     }
@@ -377,6 +395,7 @@ function saveSettings() {
       data.endpoint = endpointEl?.value?.trim() || '';
       if (modelNameEl?.value?.trim()) {
         data.model = modelNameEl.value.trim();
+        data.customModelName = modelNameEl.value.trim();
         data.customModels = [modelNameEl.value.trim()];
       }
     }
@@ -445,6 +464,10 @@ async function startAIInterpretation(reading, question, dateInfo) {
 
   currentAbortController = new AbortController();
 
+  const model = getProviderConfig(providerId).model || AI_PROVIDERS[providerId].defaultModel;
+  const startedAt = Date.now();
+  track('ai_interpret_started', { provider: providerId, model });
+
   try {
     const prompt = buildDivinationPrompt(reading, question, dateInfo);
     let fullText = '';
@@ -455,10 +478,26 @@ async function startAIInterpretation(reading, question, dateInfo) {
       outputEl.textContent = fullText;
       outputEl.scrollTop = outputEl.scrollHeight;
     }
+
+    // 只上报长度，不上报解读正文
+    track(currentAbortController.signal.aborted ? 'ai_interpret_stopped' : 'ai_interpret_completed', {
+      provider: providerId,
+      model,
+      duration_ms: Date.now() - startedAt,
+      output_chars: fullText.length,
+    });
   } catch (err) {
     if (!currentAbortController.signal.aborted) {
       outputEl.textContent += `\n\n❌ 错误：${err.message}`;
     }
+    // err.message 里可能带 API 返回的原文，只提取 HTTP 状态码上报
+    const statusMatch = /\((\d{3})\)/.exec(err.message || '');
+    track('ai_interpret_failed', {
+      provider: providerId,
+      model,
+      duration_ms: Date.now() - startedAt,
+      http_status: statusMatch ? Number(statusMatch[1]) : null,
+    });
   } finally {
     btnEl.disabled = false;
     stopBtn.classList.add('hidden');

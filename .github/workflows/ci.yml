@@ -21,7 +21,9 @@ jobs:
       - name: Check file structure
         run: |
           echo "Checking required files..."
-          for f in index.html css/style.css js/i18n.js js/data.js js/app.js js/ai.js; do
+          for f in index.html css/style.css js/config.js js/i18n.js js/data.js js/app.js \
+                   js/ai.js js/analytics.js js/history.js js/supabase.js \
+                   supabase/schema.sql scripts/build-config.mjs; do
             if [ ! -f "$f" ]; then
               echo "❌ Missing: $f"
               exit 1
@@ -30,16 +32,14 @@ jobs:
           done
 
       - name: Validate HTML
-        run: |
-          npx html-validate@latest index.html || true
+        run: npx --yes html-validate@latest index.html
 
       - name: Lint JavaScript
         run: |
-          npx --yes eslint js/*.js --no-eslintrc \
-            --env browser,es2020 \
-            --parser-options=ecmaVersion:2020 \
-            --rule '{"no-undef":"off","no-unused-vars":"warn","no-redeclare":"error","eqeqeq":"warn"}' \
-            || true
+          npx --yes eslint@8 js/*.js test/*.js --no-eslintrc \
+            --env browser,es2021 \
+            --parser-options=ecmaVersion:2021 \
+            --rule '{"no-undef":"off","no-unused-vars":"warn","no-redeclare":"error","eqeqeq":"warn"}'
 
       - name: Check for sensitive files
         run: |
@@ -59,32 +59,91 @@ jobs:
       - name: Check script load order
         run: |
           echo "Verifying script load order in index.html..."
-          I18N_LINE=$(grep -n 'js/i18n.js' index.html | head -1 | cut -d: -f1)
-          DATA_LINE=$(grep -n 'js/data.js' index.html | head -1 | cut -d: -f1)
-          AI_LINE=$(grep -n 'js/ai.js' index.html | head -1 | cut -d: -f1)
-          APP_LINE=$(grep -n 'js/app.js' index.html | head -1 | cut -d: -f1)
-          if [ "$I18N_LINE" -lt "$DATA_LINE" ] && [ "$DATA_LINE" -lt "$AI_LINE" ] && [ "$AI_LINE" -lt "$APP_LINE" ]; then
-            echo "✅ Script order correct: i18n.js ($I18N_LINE) → data.js ($DATA_LINE) → ai.js ($AI_LINE) → app.js ($APP_LINE)"
-          else
-            echo "❌ Script order wrong! Must be: i18n.js → data.js → ai.js → app.js"
+          ORDER="config analytics i18n data history supabase ai app"
+          PREV=0
+          for name in $ORDER; do
+            LINE=$(grep -n "js/$name.js" index.html | head -1 | cut -d: -f1)
+            if [ -z "$LINE" ]; then
+              echo "❌ js/$name.js not referenced in index.html"
+              exit 1
+            fi
+            if [ "$LINE" -le "$PREV" ]; then
+              echo "❌ Script order wrong! Must be: $ORDER"
+              exit 1
+            fi
+            PREV=$LINE
+          done
+          echo "✅ Script order correct: $ORDER"
+
+      # 排盘正确性测试：八卦位序、64 卦查表、纳甲内外卦、六神起例、
+      # 干支历与旬空、完整排盘比对传统标准答案。详见 test/paipan.test.js
+      - name: Verify divination correctness
+        run: node test/paipan.test.js
+
+      - name: Check analytics privacy invariants
+        run: |
+          echo "Ensuring analytics never captures question text or API keys..."
+          if grep -nE "track\([^)]*(question|apiKey|api_key)\s*[,:)]" js/*.js | grep -v "has_question"; then
+            echo "❌ Analytics may be capturing sensitive values"
             exit 1
           fi
+          if ! grep -q "autocapture: false" js/analytics.js; then
+            echo "❌ autocapture must stay disabled (it would capture #question-text)"
+            exit 1
+          fi
+          if ! grep -q "disable_session_recording: true" js/analytics.js; then
+            echo "❌ session recording must stay disabled"
+            exit 1
+          fi
+          echo "✅ Analytics privacy invariants hold"
 
-      - name: Verify hexagram data completeness
+      # 本项目开源。真实 key 由 scripts/build-config.mjs 在部署时从环境变量注入，
+      # 仓库里的 js/config.js 必须保持空值。这一步是误提交的兜底闸门。
+      - name: Ensure committed config stays blank
         run: |
-          node -e "
-            eval(require('fs').readFileSync('js/data.js','utf8'));
-            const count = Object.keys(HEXAGRAMS).length;
-            if (count !== 64) {
-              console.error('❌ Expected 64 hexagrams, got ' + count);
-              process.exit(1);
-            }
-            console.log('✅ All 64 hexagrams present');
+          if grep -qE "^const (POSTHOG_KEY|SUPABASE_URL|SUPABASE_ANON_KEY) = ['\"].+['\"]" js/config.js; then
+            echo "❌ js/config.js contains a real value — it must stay blank in the repo."
+            echo "   Set the value in the deployment environment instead (see scripts/build-config.mjs)."
+            exit 1
+          fi
+          echo "✅ Committed config is blank"
 
-            const palaceCount = Object.keys(PALACES).length;
-            if (palaceCount !== 8) {
-              console.error('❌ Expected 8 palaces, got ' + palaceCount);
-              process.exit(1);
-            }
-            console.log('✅ All 8 palaces present');
-          "
+      # 扫描 git 跟踪的所有文件。Supabase 的 JWT 会解出 payload 看 role，
+      # 而不是搜关键词 —— 文档里写「不要提交 service_role key」不该被判为泄露
+      - name: Scan for leaked secrets
+        run: node scripts/scan-secrets.mjs
+
+      - name: Verify row level security is enabled
+        run: |
+          if ! grep -q "enable row level security" supabase/schema.sql; then
+            echo "❌ readings table must have RLS enabled — without it any anon key can read every user's readings"
+            exit 1
+          fi
+          for op in select insert update delete; do
+            if ! grep -q "for $op" supabase/schema.sql; then
+              echo "❌ Missing RLS policy for $op"
+              exit 1
+            fi
+          done
+          echo "✅ RLS enabled with policies for select/insert/update/delete"
+
+      - name: Verify build-config rejects secrets
+        run: |
+          set +e
+          SR=$(node -e "console.log('eyJhbGciOiJIUzI1NiJ9.'+Buffer.from(JSON.stringify({role:'service_role'})).toString('base64url')+'.sig')")
+          SUPABASE_URL=https://abcdefgh.supabase.co SUPABASE_ANON_KEY="$SR" \
+            node scripts/build-config.mjs >/dev/null 2>&1
+          if [ $? -eq 0 ]; then
+            echo "❌ build-config.mjs accepted a service_role key"
+            exit 1
+          fi
+          POSTHOG_KEY=sk-ant-api03-aaaaaaaaaaaaaaaaaaaaaa node scripts/build-config.mjs >/dev/null 2>&1
+          if [ $? -eq 0 ]; then
+            echo "❌ build-config.mjs accepted a model API key"
+            exit 1
+          fi
+          set -e
+          # 把仓库里的空壳配置还原，避免上面的失败尝试留下残迹
+          # （拦截逻辑在写文件之前就退出，这里只是防御性兜底）
+          git checkout -- js/config.js || true
+          echo "✅ build-config.mjs rejects secrets"

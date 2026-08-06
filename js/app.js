@@ -7,11 +7,15 @@ const state = {
   currentThrow: 0,
   throws: [],
   coins: [0, 0, 0],
-  dayStem: '',
   isAutoRunning: false,
   question: '',
+  mode: 'random',
   lastReading: null,
   resultDateInfo: '',
+  // 用户在起始页手动指定的时辰索引；null 表示跟随系统时钟
+  shichenOverride: null,
+  // 起卦那一刻的干支快照（含日干支、旬空、时辰），排盘全程以此为准
+  timeInfo: null,
 };
 
 // ============================================================
@@ -19,55 +23,66 @@ const state = {
 // ============================================================
 const EARTHLY_BRANCHES_12 = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
 
+// 晚子时（23:00 起）是否进为次日干支。
+// 六爻纳甲通行「晚子时」派：23:00 一到即换日。改为 false 则按日历日算。
+const LATE_ZI_ADVANCES_DAY = true;
+
 // 根据小时获取时辰索引 (子时从23点开始)
 function getShichenIndex(hour) {
   return Math.floor(((hour + 1) % 24) / 2);
 }
 
-// 计算日天干 (参考: 2000年1月7日 = 甲子日)
-function getDayStemIndex(date) {
+// 计算六十甲子日序 0-59（0 = 甲子）
+// 参考基准：2000-01-07 为甲子日
+function getDayJiaziIndex(date) {
   const ref = new Date(2000, 0, 7);
   const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const diff = Math.round((d - ref) / 86400000);
-  return ((diff % 10) + 10) % 10;
+  let diff = Math.round((d - ref) / 86400000);
+  if (LATE_ZI_ADVANCES_DAY && date.getHours() >= 23) diff += 1;
+  return ((diff % 60) + 60) % 60;
 }
 
-function getDayStem(date) {
-  return HEAVENLY_STEMS[getDayStemIndex(date)];
+// 旬空（空亡）：本旬十天配十干，余下两支无干可配即为空
+// 甲子旬空戌亥、甲戌旬空申酉、甲申旬空午未、甲午旬空辰巳、甲辰旬空寅卯、甲寅旬空子丑
+function getXunKong(jiaziIdx) {
+  const xunHeadBranchIdx = (jiaziIdx - (jiaziIdx % 10)) % 12;
+  return [
+    EARTHLY_BRANCHES_12[(xunHeadBranchIdx + 10) % 12],
+    EARTHLY_BRANCHES_12[(xunHeadBranchIdx + 11) % 12],
+  ];
 }
 
-// 计算日地支索引
-function getDayBranchIndex(date) {
-  const ref = new Date(2000, 0, 7);
-  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const diff = Math.round((d - ref) / 86400000);
-  return ((diff % 12) + 12) % 12;
-}
-
-// 格式化当前日期时间的干支信息
-function formatDateTime(date) {
+// 取某一时刻的完整干支信息
+// shichenOverride 为 0-11 时覆盖时辰（只影响所记时辰，不影响日干支）
+function getTimeInfo(date, shichenOverride) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   const h = date.getHours();
   const min = String(date.getMinutes()).padStart(2, '0');
 
-  const dayStemIdx = getDayStemIndex(date);
-  const dayBranchIdx = getDayBranchIndex(date);
-  const dayStem = HEAVENLY_STEMS[dayStemIdx];
-  const dayBranch = EARTHLY_BRANCHES_12[dayBranchIdx];
+  const jiaziIdx = getDayJiaziIndex(date);
+  const dayStem = HEAVENLY_STEMS[jiaziIdx % 10];
+  const dayBranch = EARTHLY_BRANCHES_12[jiaziIdx % 12];
+  const xunKong = getXunKong(jiaziIdx);
 
-  const shichenIdx = getShichenIndex(h);
+  const shichenIdx = (shichenOverride === null || shichenOverride === undefined)
+    ? getShichenIndex(h)
+    : shichenOverride;
   const shichen = EARTHLY_BRANCHES_12[shichenIdx];
   const shichenNames = t('shichen_names');
 
   return {
     dateStr: `${y}-${m}-${d} ${String(h).padStart(2,'0')}:${min}`,
-    dayGanZhi: `${dayStem}${dayBranch}日`,
-    shichen: `${shichen}时`,
+    dayGanZhi: t('day_ganzhi', { gz: `${dayStem}${dayBranch}` }),
+    shichen: t('shichen_short', { branch: shichen }),
     shichenFull: shichenNames[shichenIdx],
     dayStem,
+    dayBranch,
     shichenIdx,
+    jiaziIdx,
+    xunKong,
+    xunKongStr: xunKong.join(''),
   };
 }
 
@@ -114,8 +129,15 @@ function lookupHexagram(binary) {
   return { ...hex };
 }
 
+// 初/二/三爻取内卦纳甲，四/五/上爻取外卦纳甲（两者地支不同，不可共用一张表）
 function calculateNajia(upperTrigram, lowerTrigram) {
-  return [...NAJIA[lowerTrigram], ...NAJIA[upperTrigram]];
+  return [...NAJIA_INNER[lowerTrigram], ...NAJIA_OUTER[upperTrigram]];
+}
+
+function calculateNajiaStems(upperTrigram, lowerTrigram) {
+  const inner = NAJIA_STEM_INNER[lowerTrigram];
+  const outer = NAJIA_STEM_OUTER[upperTrigram];
+  return [inner, inner, inner, outer, outer, outer];
 }
 
 function getSixRelation(palaceElement, lineElement) {
@@ -132,7 +154,7 @@ function calculateSixSpirits(dayStem) {
   return Array.from({ length: 6 }, (_, i) => SIX_SPIRITS[(startIdx + i) % 6]);
 }
 
-function calculateFullReading(throws, dayStem) {
+function calculateFullReading(throws, timeInfo) {
   const { originalBin, changedBin, hasChanging } = buildHexagrams(throws);
   const original = lookupHexagram(originalBin);
   const changed = hasChanging ? lookupHexagram(changedBin) : null;
@@ -140,9 +162,11 @@ function calculateFullReading(throws, dayStem) {
 
   const shiYing = SHI_YING_MAP[original.palaceIndex];
   const najia = calculateNajia(original.upperTrigram, original.lowerTrigram);
+  const stems = calculateNajiaStems(original.upperTrigram, original.lowerTrigram);
   const palaceElement = TRIGRAMS[TRIGRAM_BY_NAME[original.palace]].element;
   const relations = najia.map(b => getSixRelation(palaceElement, BRANCH_ELEMENT[b]));
-  const spirits = calculateSixSpirits(dayStem);
+  const spirits = calculateSixSpirits(timeInfo.dayStem);
+  const xunKong = timeInfo.xunKong;
 
   let changedNajia = null, changedRelations = null;
   if (changed) {
@@ -160,18 +184,21 @@ function calculateFullReading(throws, dayStem) {
       isYang: info.isYang,
       isChanging: info.isChanging,
       label: info.label,
+      stem: stems[i],
       branch: najia[i],
       branchElement: BRANCH_ELEMENT[najia[i]],
       relation: relations[i],
       spirit: spirits[i],
       isShi: shiYing.shi === i + 1,
       isYing: shiYing.ying === i + 1,
+      isXunKong: xunKong.includes(najia[i]),
       changedBranch: changedNajia ? changedNajia[i] : null,
       changedRelation: changedRelations ? changedRelations[i] : null,
+      changedIsXunKong: changedNajia ? xunKong.includes(changedNajia[i]) : false,
     });
   }
 
-  return { original, changed, lines, hasChanging, palaceElement };
+  return { original, changed, lines, hasChanging, palaceElement, timeInfo };
 }
 
 // ============================================================
@@ -185,6 +212,7 @@ function render() {
   $('screen-throwing').classList.toggle('hidden', state.phase !== 'throwing');
   $('screen-manual').classList.toggle('hidden', state.phase !== 'manual');
   $('screen-result').classList.toggle('hidden', state.phase !== 'result');
+  $('screen-history').classList.toggle('hidden', state.phase !== 'history');
 }
 
 // 创建铜钱DOM元素
@@ -231,32 +259,44 @@ function initLangSelector() {
 
 // 起始页
 function initStartScreen() {
-  const now = new Date();
-  const info = formatDateTime(now);
-
-  $('current-datetime').textContent = info.dateStr;
-  $('current-ganzhi').textContent = `${info.dayGanZhi}  ${info.shichenFull}`;
-
-  state.dayStem = info.dayStem;
-
-  // 时辰选择器
   const shichenSelect = $('shichen-select');
   const shichenNames = t('shichen_names');
   shichenNames.forEach((name, i) => {
     const opt = document.createElement('option');
     opt.value = i;
     opt.textContent = t('shichen_option', { branch: EARTHLY_BRANCHES_12[i], name });
-    if (i === info.shichenIdx) opt.selected = true;
     shichenSelect.appendChild(opt);
   });
 
+  // 用户手选时辰后不再跟随系统时钟；选回当前时辰则恢复跟随
+  shichenSelect.addEventListener('change', () => {
+    const picked = parseInt(shichenSelect.value, 10);
+    const nowIdx = getShichenIndex(new Date().getHours());
+    state.shichenOverride = picked === nowIdx ? null : picked;
+    refreshStartClock();
+  });
+
+  refreshStartClock();
   $('btn-start').addEventListener('click', startDivination);
 
-  setInterval(() => {
-    const n = new Date();
-    const inf = formatDateTime(n);
-    $('current-datetime').textContent = inf.dateStr;
-  }, 10000);
+  setInterval(refreshStartClock, 10000);
+}
+
+// 刷新起始页的时间/干支显示；未手选时辰时同步下拉框到当前时辰
+function refreshStartClock() {
+  const info = getTimeInfo(new Date(), state.shichenOverride);
+  $('current-datetime').textContent = info.dateStr;
+  $('current-ganzhi').textContent =
+    `${info.dayGanZhi}  ${info.shichenFull}  ${t('label_xunkong')}${info.xunKongStr}`;
+  if (state.shichenOverride === null) {
+    $('shichen-select').value = String(info.shichenIdx);
+  }
+}
+
+// 起卦时刻快照：日干支、旬空、时辰全部锁定在此刻
+function snapshotTime() {
+  state.timeInfo = getTimeInfo(new Date(), state.shichenOverride);
+  return state.timeInfo;
 }
 
 function startDivination() {
@@ -265,6 +305,9 @@ function startDivination() {
   state.throws = [];
   state.isAutoRunning = true;
   state.question = ($('question-text')?.value || '').trim();
+  state.mode = 'random';
+  snapshotTime();
+  track('divination_started', { mode: 'random' });
   render();
   renderThrowScreen();
   autoRunAllThrows();
@@ -398,17 +441,42 @@ function showResult() {
   state.isAutoRunning = false;
   render();
 
-  const reading = calculateFullReading(state.throws, state.dayStem);
+  const info = state.timeInfo || snapshotTime();
+  const reading = calculateFullReading(state.throws, info);
   if (!reading) {
     $('result-title').innerHTML = `<p style="color:red">${t('error_calc')}</p>`;
     return;
   }
+
+  presentReading(reading, info);
+
+  track('divination_completed', {
+    hexagram: reading.original.gua,
+    palace: reading.original.palace,
+    has_changing: reading.hasChanging,
+    changing_count: reading.lines.filter(l => l.isChanging).length,
+    changed_hexagram: reading.changed ? reading.changed.gua : null,
+    has_question: Boolean(state.question),
+  });
+
+  // 自动存档。先落本地保证不丢，已登录则同时上云
+  const record = createReadingRecord({
+    throws: state.throws,
+    timeInfo: info,
+    question: state.question,
+    mode: state.mode,
+  });
+  persistReading(record).catch(err => console.error('save reading failed:', err));
+}
+
+// 把一盘排盘呈现到结果页。新起的卦和从历史里翻出来的卦共用这一段
+function presentReading(reading, info) {
   state.lastReading = reading;
+  state.timeInfo = info;
 
   renderResultScreen(reading);
 
-  const now = new Date();
-  const info = formatDateTime(now);
+  // 旬空由 prompt 里的「日建/旬空」独立一行给出，此处不重复
   state.resultDateInfo = `${info.dateStr} ${info.dayGanZhi} ${info.shichen}`;
   renderProviderSelector();
 
@@ -417,7 +485,7 @@ function showResult() {
 }
 
 function renderResultScreen(reading) {
-  const { original, changed, lines, hasChanging } = reading;
+  const { original, changed, lines, hasChanging, timeInfo } = reading;
   const ps = t('palace_suffix');
 
   let titleHTML = `<span class="gua-name">${original.gua}</span>`;
@@ -429,9 +497,9 @@ function renderResultScreen(reading) {
   }
   $('result-title').innerHTML = titleHTML;
 
-  const now = new Date();
-  const info = formatDateTime(now);
-  $('result-datetime').textContent = `${info.dateStr} ${info.dayGanZhi} ${info.shichen}`;
+  $('result-datetime').textContent =
+    `${timeInfo.dateStr} ${timeInfo.dayGanZhi} ${timeInfo.shichen} · ` +
+    `${t('label_rijian')}${timeInfo.dayBranch} · ${t('label_xunkong')}${timeInfo.xunKongStr}`;
 
   const upperTri = TRIGRAMS[TRIGRAM_BY_NAME[original.upperTrigram]];
   const lowerTri = TRIGRAMS[TRIGRAM_BY_NAME[original.lowerTrigram]];
@@ -466,9 +534,10 @@ function renderResultScreen(reading) {
     if (hasChanging) {
       if (line.isChanging) {
         const changedIsYang = !line.isYang;
+        const changedKong = line.changedIsXunKong ? `<i class="kong-marker">${t('marker_kong')}</i>` : '';
         changedHTML = `
           <div class="col-yao">${renderYaoLineHTML(changedIsYang, false, false)}</div>
-          <div class="col-branch2">${line.changedBranch || ''}</div>
+          <div class="col-branch2">${line.changedBranch || ''}${changedKong}</div>
           <div class="col-relation2">${line.changedRelation || ''}</div>
         `;
       } else {
@@ -479,7 +548,7 @@ function renderResultScreen(reading) {
     row.innerHTML = `
       <div class="col-spirit">${line.spirit}</div>
       <div class="col-relation">${line.relation}</div>
-      <div class="col-branch">${line.branch}${line.branchElement}</div>
+      <div class="col-branch">${line.branch}${line.branchElement}${line.isXunKong ? `<i class="kong-marker">${t('marker_kong')}</i>` : ''}</div>
       <div class="col-yao">${renderYaoLineHTML(line.isYang, line.isChanging, false)}</div>
       <div class="col-marker">${marker}</div>
       ${changedHTML}
@@ -497,6 +566,26 @@ function renderResultScreen(reading) {
 // ============================================================
 // 保存结果图
 // ============================================================
+// html2canvas 约 200KB，只有点「保存结果图」才用得上，改为首次点击时按需加载
+const HTML2CANVAS_SRC = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+let html2canvasPromise = null;
+
+function loadHtml2Canvas() {
+  if (typeof html2canvas !== 'undefined') return Promise.resolve(html2canvas);
+  if (html2canvasPromise) return html2canvasPromise;
+  html2canvasPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = HTML2CANVAS_SRC;
+    s.onload = () => resolve(window.html2canvas);
+    s.onerror = () => {
+      html2canvasPromise = null;
+      reject(new Error('html2canvas load failed'));
+    };
+    document.head.appendChild(s);
+  });
+  return html2canvasPromise;
+}
+
 async function saveResultImage() {
   const btn = $('btn-save');
   const origText = btn.textContent;
@@ -504,6 +593,7 @@ async function saveResultImage() {
   btn.disabled = true;
 
   try {
+    const html2canvas = await loadHtml2Canvas();
     const captureEl = $('capture-area');
     const canvas = await html2canvas(captureEl, {
       backgroundColor: '#0c0c18',
@@ -521,6 +611,7 @@ async function saveResultImage() {
     link.download = filename;
     link.href = canvas.toDataURL('image/png');
     link.click();
+    track('result_image_saved', { hexagram: guaName });
 
     btn.textContent = t('saved');
     setTimeout(() => {
@@ -529,6 +620,7 @@ async function saveResultImage() {
     }, 2000);
   } catch (err) {
     console.error('Save failed:', err);
+    track('result_image_failed', { reason: err.message });
     btn.textContent = t('save_failed');
     setTimeout(() => {
       btn.textContent = origText;
@@ -546,6 +638,8 @@ const manualCoins = [];
 function startManual() {
   state.phase = 'manual';
   state.question = ($('question-text')?.value || '').trim();
+  state.mode = 'manual';
+  track('divination_started', { mode: 'manual' });
   manualCoins.length = 0;
   for (let i = 0; i < 6; i++) {
     manualCoins.push([-1, -1, -1]);
@@ -623,6 +717,7 @@ function submitManual() {
     const value = getYaoValue(coins);
     state.throws.push({ coins: [...coins], value });
   }
+  snapshotTime();
   showResult();
 }
 
@@ -630,13 +725,271 @@ function restart() {
   state.phase = 'start';
   state.currentThrow = 0;
   state.throws = [];
+  state.timeInfo = null;
+  refreshStartClock();
   render();
+}
+
+// ============================================================
+// 卦例历史
+// ============================================================
+
+async function showHistory() {
+  state.phase = 'history';
+  render();
+
+  const list = $('history-list');
+  const hint = $('history-hint');
+  list.textContent = '';
+  hint.textContent = t('history_loading');
+
+  let result;
+  try {
+    result = await listReadings();
+  } catch (err) {
+    console.error('list readings failed:', err);
+    result = { records: loadLocalHistory(), source: 'local' };
+  }
+
+  const { records, source } = result;
+  hint.textContent = source === 'cloud'
+    ? t('history_hint_cloud')
+    : (isCloudConfigured() ? t('history_hint_local_signin') : t('history_hint_local_only'));
+
+  if (!records.length) {
+    const empty = document.createElement('div');
+    empty.className = 'history-empty';
+    empty.textContent = t('history_empty');
+    list.appendChild(empty);
+    return;
+  }
+
+  for (const rec of records) {
+    const item = summarizeRecord(rec);
+    if (item) list.appendChild(buildHistoryRow(rec, item));
+  }
+  track('history_opened', { source, count: records.length });
+}
+
+// 用 DOM API 而非 innerHTML：占问之事是用户输入的任意文本，
+// 拼进 HTML 就等于开了个注入口子
+function buildHistoryRow(rec, item) {
+  const row = document.createElement('div');
+  row.className = 'history-item';
+
+  const main = document.createElement('button');
+  main.type = 'button';
+  main.className = 'history-item-main';
+  main.addEventListener('click', () => viewRecord(rec));
+
+  const line1 = document.createElement('div');
+  line1.className = 'history-item-gua';
+  line1.textContent = item.changedGua ? `${item.gua} → ${item.changedGua}` : item.gua;
+  main.appendChild(line1);
+
+  const line2 = document.createElement('div');
+  line2.className = 'history-item-meta';
+  line2.textContent = `${item.dateStr}　${item.ganzhi}`;
+  main.appendChild(line2);
+
+  if (item.question) {
+    const line3 = document.createElement('div');
+    line3.className = 'history-item-question';
+    line3.textContent = item.question;
+    main.appendChild(line3);
+  }
+
+  row.appendChild(main);
+
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'history-item-delete';
+  del.textContent = '×';
+  del.title = t('history_delete');
+  del.setAttribute('aria-label', t('history_delete'));
+  del.addEventListener('click', async () => {
+    if (!confirm(t('history_confirm_delete'))) return;
+    del.disabled = true;
+    await removeReading(rec.id);
+    row.remove();
+    track('history_reading_deleted');
+    if (!$('history-list').children.length) showHistory();
+  });
+  row.appendChild(del);
+
+  return row;
+}
+
+// 从历史里翻出一盘重看。不重新存档
+function viewRecord(rec) {
+  const built = buildReadingFromRecord(rec);
+  if (!built.reading) return;
+
+  state.throws = built.throws;
+  state.question = rec.question || '';
+  state.mode = rec.mode || 'random';
+  state.phase = 'result';
+  render();
+  presentReading(built.reading, built.timeInfo);
+  window.scrollTo(0, 0);
+  track('history_reading_opened', { hexagram: built.reading.original.gua });
+}
+
+// ============================================================
+// 账户
+// ============================================================
+
+function updateAccountButton() {
+  const btn = $('btn-account');
+  const user = getCurrentUser();
+  btn.textContent = user ? t('btn_account_signed_in') : t('btn_account');
+  btn.classList.toggle('top-btn-active', Boolean(user));
+}
+
+function openAccountModal() {
+  renderAccountModal();
+  $('account-modal').classList.remove('hidden');
+  track('account_modal_opened');
+}
+
+function closeAccountModal() {
+  $('account-modal').classList.add('hidden');
+}
+
+function renderAccountModal(message) {
+  const body = $('account-body');
+  body.textContent = '';
+
+  // 未配置 Supabase（本地开发、他人 fork）：说明卦例只在本机
+  if (!isCloudConfigured()) {
+    body.appendChild(makeAccountNote(t('account_not_configured')));
+    return;
+  }
+
+  const user = getCurrentUser();
+  if (user) {
+    body.appendChild(makeAccountNote(t('account_signed_in_as')));
+
+    const email = document.createElement('div');
+    email.className = 'account-email';
+    email.textContent = user.email || user.id;
+    body.appendChild(email);
+
+    const out = document.createElement('button');
+    out.type = 'button';
+    out.className = 'btn-restart btn-account-action';
+    out.textContent = t('btn_sign_out');
+    out.addEventListener('click', async () => {
+      out.disabled = true;
+      try {
+        await signOut();
+      } finally {
+        renderAccountModal();
+      }
+    });
+    body.appendChild(out);
+    if (message) body.appendChild(makeAccountNote(message));
+    return;
+  }
+
+  body.appendChild(makeAccountNote(t('account_signin_intro')));
+
+  // 第三方登录。放在邮箱之前 —— 一次点击 vs 跳去邮箱翻链接，转化差很远
+  const providers = getOAuthProviders();
+  if (providers.length) {
+    const group = document.createElement('div');
+    group.className = 'oauth-group';
+    for (const provider of providers) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `btn-oauth btn-oauth-${provider}`;
+      btn.textContent = t('account_continue_with', { provider: getOAuthProviderName(provider) });
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          await signInWithOAuth(provider);   // 成功即跳转离站
+        } catch (err) {
+          btn.disabled = false;
+          renderAccountModal(err.message);
+        }
+      });
+      group.appendChild(btn);
+    }
+    body.appendChild(group);
+
+    const divider = document.createElement('div');
+    divider.className = 'oauth-divider';
+    const dividerText = document.createElement('span');
+    dividerText.textContent = t('account_or');
+    divider.appendChild(dividerText);
+    body.appendChild(divider);
+  }
+
+  const field = document.createElement('div');
+  field.className = 'settings-field';
+  const label = document.createElement('label');
+  label.textContent = t('account_email_label');
+  label.setAttribute('for', 'account-email');
+  const input = document.createElement('input');
+  input.type = 'email';
+  input.id = 'account-email';
+  input.autocomplete = 'email';
+  input.placeholder = t('account_email_placeholder');
+  field.appendChild(label);
+  field.appendChild(input);
+  body.appendChild(field);
+
+  const emailHint = document.createElement('p');
+  emailHint.className = 'account-hint';
+  emailHint.textContent = t('account_email_hint');
+  body.appendChild(emailHint);
+
+  const status = document.createElement('div');
+  status.className = 'account-status';
+  if (message) status.textContent = message;
+
+  const send = document.createElement('button');
+  send.type = 'button';
+  send.className = 'btn-primary btn-account-action';
+  send.textContent = t('btn_send_magic_link');
+  const submit = async () => {
+    const email = input.value.trim();
+    // 只做基本形状校验，真正的有效性由收不收得到邮件决定
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      status.textContent = t('account_error_invalid_email');
+      return;
+    }
+    send.disabled = true;
+    send.textContent = t('account_sending');
+    status.textContent = '';
+    try {
+      await signInWithEmail(email);
+      status.textContent = t('account_link_sent');
+    } catch (err) {
+      status.textContent = err.message;
+      send.disabled = false;
+      send.textContent = t('btn_send_magic_link');
+    }
+  };
+  send.addEventListener('click', submit);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+
+  body.appendChild(send);
+  body.appendChild(status);
+}
+
+function makeAccountNote(text) {
+  const note = document.createElement('p');
+  note.className = 'account-note';
+  note.textContent = text;
+  return note;
 }
 
 // ============================================================
 // 初始化
 // ============================================================
 function init() {
+  initAnalytics();
   initLangSelector();
   applyLanguage();
   initStartScreen();
@@ -647,11 +1000,38 @@ function init() {
   $('btn-save').addEventListener('click', saveResultImage);
   $('btn-restart').addEventListener('click', restart);
 
+  // 历史与账户
+  $('btn-history').addEventListener('click', showHistory);
+  $('btn-history-back').addEventListener('click', restart);
+  $('btn-account').addEventListener('click', openAccountModal);
+  $('btn-account-close').addEventListener('click', closeAccountModal);
+  onAccountChange(() => {
+    updateAccountButton();
+    if (!$('account-modal').classList.contains('hidden')) renderAccountModal();
+    // 登录状态一变，历史来源就从本地切到云端（或反之），重新拉一次
+    if (state.phase === 'history') showHistory();
+  });
+  updateAccountButton();
+  // 只有确实可能已登录（本地有会话，或刚从登录邮件跳回来）才会真的加载 SDK
+  initCloudAccount().catch(err => console.error('cloud init failed:', err));
+
+  // 统计 opt-out 开关：只在统计确实启用时才露出，本地开发不显示
+  if (window.liuyaoAnalytics && window.liuyaoAnalytics.isEnabled()) {
+    const optOutBtn = $('btn-analytics-optout');
+    $('privacy-note').classList.remove('hidden');
+    optOutBtn.addEventListener('click', () => {
+      window.liuyaoAnalytics.optOut();
+      optOutBtn.textContent = t('analytics_optout_done');
+      optOutBtn.disabled = true;
+    });
+  }
+
   // 复制卦象结果
   $('btn-copy-prompt').addEventListener('click', () => {
     if (!state.lastReading) return;
     const prompt = buildDivinationPrompt(state.lastReading, state.question, state.resultDateInfo);
     const onCopied = () => {
+      track('result_copied', { hexagram: state.lastReading.original.gua });
       const btn = $('btn-copy-prompt');
       const hint = $('copy-hint');
       btn.textContent = t('copied');
@@ -682,7 +1062,10 @@ function init() {
     startAIInterpretation(state.lastReading, state.question, state.resultDateInfo);
   });
   $('btn-ai-stop').addEventListener('click', stopAIInterpretation);
-  $('btn-ai-settings').addEventListener('click', renderSettingsModal);
+  $('btn-ai-settings').addEventListener('click', () => {
+    track('ai_settings_opened');
+    renderSettingsModal();
+  });
   $('btn-settings-save').addEventListener('click', saveSettings);
   $('btn-settings-close').addEventListener('click', closeSettings);
 }

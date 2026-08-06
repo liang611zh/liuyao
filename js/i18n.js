@@ -13,7 +13,13 @@ const SUPPORTED_LANGS = {
 let currentLang = localStorage.getItem('liuyao_lang') || 'zh-CN';
 
 function t(key, params) {
-  let str = I18N[currentLang]?.[key] || I18N['zh-CN'][key] || key;
+  // 必须用 in 判断而不是 ||：有些条目的合法取值就是空字符串
+  // （如 zh-CN 的 ai_prompt_lang），用 || 会把它当成缺失，最后把 key 名本身当译文吐出来
+  const dict = I18N[currentLang];
+  let str;
+  if (dict && key in dict) str = dict[key];
+  else if (key in I18N['zh-CN']) str = I18N['zh-CN'][key];
+  else str = key;
   if (params) {
     for (const [k, v] of Object.entries(params)) {
       str = str.replaceAll(`{${k}}`, v);
@@ -23,8 +29,11 @@ function t(key, params) {
 }
 
 function setLanguage(lang) {
+  const from = currentLang;
   currentLang = lang;
   localStorage.setItem('liuyao_lang', lang);
+  // 紧接着就 reload，用 sendBeacon 保证事件不被打断
+  track('lang_changed', { from, to: lang }, { transport: 'sendBeacon' });
   location.reload();
 }
 
@@ -39,6 +48,8 @@ function applyLanguage() {
     el.placeholder = t(el.dataset.i18nPlaceholder);
   });
   document.title = t('app_title');
+  // 让 <html lang> 跟随所选语言，影响读屏软件发音、断行规则与搜索引擎收录
+  document.documentElement.lang = currentLang;
 }
 
 // ============================================================
@@ -101,6 +112,41 @@ const I18N = {
   error_calc: '排盘计算出错，请重试',
   coin_heads: '字',
   coin_tails: '背',
+  day_ganzhi: '{gz}日',
+  shichen_short: '{branch}时',
+  label_rijian: '日建：',
+  label_xunkong: '旬空：',
+  marker_kong: '空',
+  analytics_optout: '不参与匿名统计',
+  analytics_optout_done: '已退出统计',
+
+  // 历史与账户
+  btn_history: '历史',
+  btn_account: '登录',
+  btn_account_signed_in: '账户',
+  history_title: '卦例历史',
+  history_loading: '加载中…',
+  history_empty: '还没有卦例记录',
+  history_hint_cloud: '已同步到你的账户，可跨设备查看',
+  history_hint_local_signin: '记录保存在本机浏览器，登录后可跨设备同步',
+  history_hint_local_only: '记录保存在本机浏览器，清除浏览器数据会一并丢失',
+  history_delete: '删除',
+  history_confirm_delete: '确定删除这条卦例？',
+  account_title: '账户',
+  account_signin_intro: '登录后卦例会存到你的账户，换设备也能看到。',
+  account_continue_with: '用 {provider} 账号登录',
+  account_or: '或',
+  account_email_hint: '我们会发一封带登录链接的邮件，点开即登录，无需密码。',
+  account_email_label: '邮箱',
+  account_email_placeholder: 'you@example.com',
+  btn_send_magic_link: '发送登录链接',
+  account_sending: '发送中…',
+  account_link_sent: '登录链接已发送，请查收邮件（也看一下垃圾邮件箱）',
+  account_signed_in_as: '当前登录',
+  btn_sign_out: '退出登录',
+  account_not_configured: '本站未启用账户功能，卦例仅保存在本机浏览器。',
+  account_error_not_configured: '未配置 Supabase',
+  account_error_invalid_email: '请输入有效的邮箱地址',
 
   shichen_names: [
     '子时 (23:00-1:00)', '丑时 (1:00-3:00)', '寅时 (3:00-5:00)',
@@ -108,7 +154,7 @@ const I18N = {
     '午时 (11:00-13:00)', '未时 (13:00-15:00)', '申时 (15:00-17:00)',
     '酉时 (17:00-19:00)', '戌时 (19:00-21:00)', '亥时 (21:00-23:00)',
   ],
-  shichen_option: '{branch}时 — {name}',
+  shichen_option: '{name}',   // shichen_names 里已含「时」字，不再重复拼 branch
 
   // AI 相关
   ai_api_key: 'API Key',
@@ -184,6 +230,40 @@ const I18N = {
   error_calc: '排盤計算出錯，請重試',
   coin_heads: '字',
   coin_tails: '背',
+  day_ganzhi: '{gz}日',
+  shichen_short: '{branch}時',
+  label_rijian: '日建：',
+  label_xunkong: '旬空：',
+  marker_kong: '空',
+  analytics_optout: '不參與匿名統計',
+  analytics_optout_done: '已退出統計',
+
+  btn_history: '歷史',
+  btn_account: '登入',
+  btn_account_signed_in: '帳戶',
+  history_title: '卦例歷史',
+  history_loading: '載入中…',
+  history_empty: '還沒有卦例紀錄',
+  history_hint_cloud: '已同步到你的帳戶，可跨裝置查看',
+  history_hint_local_signin: '紀錄儲存在本機瀏覽器，登入後可跨裝置同步',
+  history_hint_local_only: '紀錄儲存在本機瀏覽器，清除瀏覽器資料會一併遺失',
+  history_delete: '刪除',
+  history_confirm_delete: '確定刪除這筆卦例？',
+  account_title: '帳戶',
+  account_signin_intro: '登入後卦例會存到你的帳戶，換裝置也能看到。',
+  account_continue_with: '用 {provider} 帳號登入',
+  account_or: '或',
+  account_email_hint: '我們會寄一封帶登入連結的信件，點開即登入，無需密碼。',
+  account_email_label: '信箱',
+  account_email_placeholder: 'you@example.com',
+  btn_send_magic_link: '寄送登入連結',
+  account_sending: '寄送中…',
+  account_link_sent: '登入連結已寄出，請查收信件（也看一下垃圾信件匣）',
+  account_signed_in_as: '目前登入',
+  btn_sign_out: '登出',
+  account_not_configured: '本站未啟用帳戶功能，卦例僅儲存在本機瀏覽器。',
+  account_error_not_configured: '未設定 Supabase',
+  account_error_invalid_email: '請輸入有效的電子郵件地址',
 
   shichen_names: [
     '子時 (23:00-1:00)', '丑時 (1:00-3:00)', '寅時 (3:00-5:00)',
@@ -191,7 +271,7 @@ const I18N = {
     '午時 (11:00-13:00)', '未時 (13:00-15:00)', '申時 (15:00-17:00)',
     '酉時 (17:00-19:00)', '戌時 (19:00-21:00)', '亥時 (21:00-23:00)',
   ],
-  shichen_option: '{branch}時 — {name}',
+  shichen_option: '{name}',
 
   ai_api_key: 'API Key',
   ai_model: '模型',
@@ -266,6 +346,40 @@ const I18N = {
   error_calc: 'Calculation error, please try again',
   coin_heads: 'H',
   coin_tails: 'T',
+  day_ganzhi: '{gz} Day',
+  shichen_short: '{branch} hr',
+  label_rijian: 'Day Branch: ',
+  label_xunkong: 'Void: ',
+  marker_kong: '∅',
+  analytics_optout: 'Opt out of anonymous analytics',
+  analytics_optout_done: 'Opted out',
+
+  btn_history: 'History',
+  btn_account: 'Sign in',
+  btn_account_signed_in: 'Account',
+  history_title: 'Reading History',
+  history_loading: 'Loading…',
+  history_empty: 'No saved readings yet',
+  history_hint_cloud: 'Synced to your account — available on any device',
+  history_hint_local_signin: 'Saved in this browser. Sign in to sync across devices',
+  history_hint_local_only: 'Saved in this browser. Clearing browser data will erase them',
+  history_delete: 'Delete',
+  history_confirm_delete: 'Delete this reading?',
+  account_title: 'Account',
+  account_signin_intro: 'Sign in to keep your readings on your account and see them on any device.',
+  account_continue_with: 'Continue with {provider}',
+  account_or: 'or',
+  account_email_hint: 'We will email you a sign-in link. No password needed.',
+  account_email_label: 'Email',
+  account_email_placeholder: 'you@example.com',
+  btn_send_magic_link: 'Send sign-in link',
+  account_sending: 'Sending…',
+  account_link_sent: 'Sign-in link sent. Check your inbox (and spam folder)',
+  account_signed_in_as: 'Signed in as',
+  btn_sign_out: 'Sign out',
+  account_not_configured: 'Accounts are not enabled on this site. Readings are saved in this browser only.',
+  account_error_not_configured: 'Supabase is not configured',
+  account_error_invalid_email: 'Please enter a valid email address',
 
   shichen_names: [
     'Zi (23:00-1:00)', 'Chou (1:00-3:00)', 'Yin (3:00-5:00)',
@@ -348,6 +462,40 @@ const I18N = {
   error_calc: '計算エラー。もう一度お試しください',
   coin_heads: '表',
   coin_tails: '裏',
+  day_ganzhi: '{gz}日',
+  shichen_short: '{branch}の刻',
+  label_rijian: '日建：',
+  label_xunkong: '旬空：',
+  marker_kong: '空',
+  analytics_optout: '匿名統計に参加しない',
+  analytics_optout_done: '統計を停止しました',
+
+  btn_history: '履歴',
+  btn_account: 'ログイン',
+  btn_account_signed_in: 'アカウント',
+  history_title: '占い履歴',
+  history_loading: '読み込み中…',
+  history_empty: 'まだ記録がありません',
+  history_hint_cloud: 'アカウントに同期済み。どの端末からでも見られます',
+  history_hint_local_signin: 'この端末のブラウザに保存されています。ログインすると同期できます',
+  history_hint_local_only: 'この端末のブラウザに保存されています。閲覧データを消すと失われます',
+  history_delete: '削除',
+  history_confirm_delete: 'この記録を削除しますか？',
+  account_title: 'アカウント',
+  account_signin_intro: 'ログインすると記録がアカウントに保存され、他の端末からも見られます。',
+  account_continue_with: '{provider} でログイン',
+  account_or: 'または',
+  account_email_hint: 'ログイン用リンクをメールでお送りします。パスワードは不要です。',
+  account_email_label: 'メール',
+  account_email_placeholder: 'you@example.com',
+  btn_send_magic_link: 'ログインリンクを送る',
+  account_sending: '送信中…',
+  account_link_sent: 'ログインリンクを送信しました。受信箱（迷惑メールも）をご確認ください',
+  account_signed_in_as: 'ログイン中',
+  btn_sign_out: 'ログアウト',
+  account_not_configured: 'このサイトではアカウント機能が無効です。記録はこの端末にのみ保存されます。',
+  account_error_not_configured: 'Supabase が未設定です',
+  account_error_invalid_email: '有効なメールアドレスを入力してください',
 
   shichen_names: [
     '子の刻 (23:00-1:00)', '丑の刻 (1:00-3:00)', '寅の刻 (3:00-5:00)',
@@ -355,7 +503,7 @@ const I18N = {
     '午の刻 (11:00-13:00)', '未の刻 (13:00-15:00)', '申の刻 (15:00-17:00)',
     '酉の刻 (17:00-19:00)', '戌の刻 (19:00-21:00)', '亥の刻 (21:00-23:00)',
   ],
-  shichen_option: '{branch} — {name}',
+  shichen_option: '{name}',
 
   ai_api_key: 'APIキー',
   ai_model: 'モデル',
@@ -430,6 +578,40 @@ const I18N = {
   error_calc: '계산 오류, 다시 시도해주세요',
   coin_heads: '앞',
   coin_tails: '뒤',
+  day_ganzhi: '{gz}일',
+  shichen_short: '{branch}시',
+  label_rijian: '일건: ',
+  label_xunkong: '순공: ',
+  marker_kong: '공',
+  analytics_optout: '익명 통계에 참여하지 않기',
+  analytics_optout_done: '통계 해제됨',
+
+  btn_history: '기록',
+  btn_account: '로그인',
+  btn_account_signed_in: '계정',
+  history_title: '점괘 기록',
+  history_loading: '불러오는 중…',
+  history_empty: '아직 저장된 점괘가 없습니다',
+  history_hint_cloud: '계정에 동기화됨 — 어느 기기에서나 볼 수 있습니다',
+  history_hint_local_signin: '이 브라우저에 저장됩니다. 로그인하면 기기 간 동기화됩니다',
+  history_hint_local_only: '이 브라우저에 저장됩니다. 브라우저 데이터를 지우면 함께 사라집니다',
+  history_delete: '삭제',
+  history_confirm_delete: '이 점괘를 삭제할까요?',
+  account_title: '계정',
+  account_signin_intro: '로그인하면 기록이 계정에 저장되어 다른 기기에서도 볼 수 있습니다.',
+  account_continue_with: '{provider} 계정으로 로그인',
+  account_or: '또는',
+  account_email_hint: '로그인 링크를 이메일로 보내드립니다. 비밀번호는 필요 없습니다.',
+  account_email_label: '이메일',
+  account_email_placeholder: 'you@example.com',
+  btn_send_magic_link: '로그인 링크 보내기',
+  account_sending: '보내는 중…',
+  account_link_sent: '로그인 링크를 보냈습니다. 메일함(스팸함 포함)을 확인하세요',
+  account_signed_in_as: '로그인 계정',
+  btn_sign_out: '로그아웃',
+  account_not_configured: '이 사이트는 계정 기능이 비활성화되어 있습니다. 점괘는 이 브라우저에만 저장됩니다.',
+  account_error_not_configured: 'Supabase가 설정되지 않았습니다',
+  account_error_invalid_email: '올바른 이메일 주소를 입력하세요',
 
   shichen_names: [
     '자시 (23:00-1:00)', '축시 (1:00-3:00)', '인시 (3:00-5:00)',

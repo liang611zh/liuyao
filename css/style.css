@@ -154,8 +154,26 @@ body {
 .lang-switcher {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
   margin-bottom: -4px;
 }
+
+.top-btn {
+  padding: 5px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-card);
+  font-family: inherit;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.top-btn:hover { color: var(--gold); border-color: var(--gold-dim); }
+.top-btn-active { color: var(--gold); border-color: var(--gold-dim); }
 
 .lang-select {
   padding: 5px 10px;
@@ -207,6 +225,10 @@ body {
   gap: 12px;
   margin-bottom: 16px;
   font-size: 0.9rem;
+}
+
+.setting-row-spaced {
+  margin-top: 16px;
 }
 
 .setting-row label {
@@ -843,11 +865,205 @@ body {
 
 .col-spirit { width: 36px; font-size: 0.75rem; text-align: center; flex-shrink: 0; color: var(--text-secondary); }
 .col-relation { width: 32px; font-size: 0.75rem; text-align: center; flex-shrink: 0; }
-.col-branch { width: 34px; font-size: 0.75rem; text-align: center; flex-shrink: 0; color: var(--text-secondary); }
+/* 宽度需容得下「子水空」三字，否则旬空标记会折行把行高撑开 */
+.col-branch { width: 46px; font-size: 0.75rem; text-align: center; flex-shrink: 0; color: var(--text-secondary); white-space: nowrap; }
 .col-yao { flex: 1; display: flex; justify-content: center; min-width: 44px; }
 .col-marker { width: 18px; font-size: 0.75rem; font-weight: 700; text-align: center; color: var(--gold-bright); flex-shrink: 0; }
-.col-branch2 { width: 20px; font-size: 0.7rem; text-align: center; flex-shrink: 0; color: var(--text-secondary); }
+.col-branch2 { width: 30px; font-size: 0.7rem; text-align: center; flex-shrink: 0; color: var(--text-secondary); white-space: nowrap; }
 .col-relation2 { width: 28px; font-size: 0.7rem; text-align: center; flex-shrink: 0; }
+
+/* 旬空标记 */
+.kong-marker {
+  font-style: normal;
+  font-size: 0.62rem;
+  color: var(--text-dim);
+  border: 1px solid var(--border-color);
+  border-radius: 2px;
+  padding: 0 1px;
+  margin-left: 1px;
+  vertical-align: super;
+  line-height: 1;
+}
+
+/* ============================================================
+   卦例历史
+   ============================================================ */
+.history-screen {
+  padding-top: 24px;
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.history-empty {
+  text-align: center;
+  padding: 40px 0;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.history-item {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.history-item:hover { border-color: var(--gold-dim); }
+
+.history-item-main {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  background: none;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.history-item-gua {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--gold);
+  margin-bottom: 4px;
+}
+
+.history-item-meta {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.history-item-question {
+  margin-top: 5px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  /* 占问可能很长，列表里截断成一行 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-item-delete {
+  width: 36px;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  border-left: 1px solid var(--border-color);
+  font-size: 1.1rem;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.history-item-delete:hover { color: var(--crimson-soft); }
+.history-item-delete:disabled { opacity: 0.4; cursor: default; }
+
+/* ============================================================
+   账户弹窗
+   ============================================================ */
+.account-note {
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+}
+
+.account-email {
+  font-size: 0.9rem;
+  color: var(--gold);
+  word-break: break-all;
+  margin-bottom: 16px;
+}
+
+.oauth-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.btn-oauth {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-card);
+  font-family: inherit;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.btn-oauth:hover { border-color: var(--gold-dim); color: var(--gold); }
+.btn-oauth:disabled { opacity: 0.5; cursor: default; }
+
+.oauth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 14px;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.oauth-divider::before,
+.oauth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.account-hint {
+  margin-top: 8px;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.account-status {
+  margin-top: 12px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+  min-height: 1.2em;
+}
+
+.btn-account-action {
+  width: 100%;
+  margin-top: 14px;
+}
+
+/* 统计 opt-out */
+.privacy-note {
+  margin-top: 18px;
+  text-align: center;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  font: inherit;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.link-btn:hover { opacity: 1; }
+.link-btn:disabled { cursor: default; text-decoration: none; opacity: 0.5; }
 
 .trigram-divider {
   height: 1px;
@@ -1174,7 +1390,7 @@ body {
   .yao-line { width: 100px; }
   .col-spirit { width: 52px; font-size: 0.88rem; }
   .col-relation { width: 44px; font-size: 0.88rem; }
-  .col-branch { width: 42px; font-size: 0.88rem; }
+  .col-branch { width: 56px; font-size: 0.88rem; }
   .col-marker { width: 28px; font-size: 0.88rem; }
   .app-title { font-size: 2.8rem; }
 }
