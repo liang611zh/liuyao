@@ -11,7 +11,7 @@
 //   · 六神起例天干映射错位     → 六神整体偏移
 // 改动 src/lib/data.ts 或 src/lib/paipan.ts 前请先确认这里仍然全绿。
 
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 
 import {
   HEXAGRAMS,
@@ -450,6 +450,18 @@ describe('多语言', () => {
     setLanguage('ja')
     expect(t('btn_send_magic_link')).toBe(I18N.ja.btn_send_magic_link)
     setLanguage('zh-CN')
+  })
+
+  // 产品决策：主力用户在墙内，但常装英文系统 / 英文 Chrome。
+  // 按 navigator.language 自动选会让他们一进来就是英文，而卦名、纳甲、六亲
+  // 本来就是中文术语。node 的 navigator.language 是 en-US，所以这条断言
+  // 一旦有人把嗅探加回去就会红。
+  it('没存过选择时默认简中，不跟随浏览器语言', async () => {
+    localStorage.removeItem('liuyao_lang')
+    vi.resetModules()
+    const fresh = await import('@/lib/i18n')
+    expect(fresh.getLang()).toBe('zh-CN')
+    localStorage.setItem('liuyao_lang', 'zh-CN')
   })
 
   it('缺失的 key 回落到简中而不是抛错', () => {

@@ -5,11 +5,13 @@ import { cn } from '@/lib/utils'
 // 跟整体版式打架。只有汉字为主的语言才用毛笔体，其余回落宋体。
 const BRUSH_LANGS = new Set(['zh-CN', 'zh-TW', 'ja'])
 
+export function isBrushLang() {
+  return BRUSH_LANGS.has(getLang())
+}
+
 /** 标题字体：中日文用毛笔体，其余用宋体 + 宽字距 */
 export function brushClass() {
-  return BRUSH_LANGS.has(getLang())
-    ? 'font-brush'
-    : 'font-serif font-semibold tracking-[0.06em]'
+  return isBrushLang() ? 'font-brush' : 'font-serif font-semibold tracking-[0.06em]'
 }
 
 /** 背景：亮色是宣纸纤维，暗色是夜空星点。纯 CSS，无图片资源 */

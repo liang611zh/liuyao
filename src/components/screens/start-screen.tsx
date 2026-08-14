@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Dices, PencilLine } from 'lucide-react'
 
-import { FretBand, FretRule, Seal, SectionHeading, brushClass } from '@/components/chrome'
+import {
+  FretBand,
+  FretRule,
+  Seal,
+  SectionHeading,
+  brushClass,
+  isBrushLang,
+} from '@/components/chrome'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -87,7 +94,15 @@ export function StartScreen({
       <div className="flex flex-col items-center gap-2 pt-4 pb-1">
         <div className="flex items-center gap-3">
           <Seal className="size-8 text-lg">卜</Seal>
-          <h1 className={cn('text-foreground text-4xl tracking-[0.15em]', brushClass())}>
+          {/* 四个汉字排得下 text-4xl；「Liu Yao Divination」在 414px 上会折行，
+              连带把左边那枚印章顶歪，所以非中日语言降一档 */}
+          <h1
+            className={cn(
+              'text-foreground tracking-[0.15em]',
+              isBrushLang() ? 'text-4xl' : 'text-3xl',
+              brushClass(),
+            )}
+          >
             {t('app_title')}
           </h1>
         </div>

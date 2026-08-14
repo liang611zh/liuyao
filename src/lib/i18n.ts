@@ -26,20 +26,21 @@ function isLang(v: unknown): v is Lang {
   return typeof v === 'string' && v in SUPPORTED_LANGS
 }
 
-// 优先用户上次的选择，其次浏览器偏好，最后回落简中
+/**
+ * 只认用户上次的选择，否则一律简中。
+ *
+ * **刻意不嗅探 navigator.language。** 试过按浏览器语言自动选，结果是：
+ * 主力用户在墙内、装的却常是英文系统或英文 Chrome，一进来就变成英文，
+ * 而这个应用的主体（卦名、纳甲、六亲、六神）本来就是中文术语。
+ * 想换语言的人点右上角一下就行，且那个选择会记住。
+ */
 function detectLang(): Lang {
   try {
     const saved = localStorage.getItem(LANG_KEY)
     if (isLang(saved)) return saved
   } catch {
-    /* 隐私模式下读不到，往下走 */
+    /* 隐私模式下读不到，回落默认 */
   }
-  // node 里跑测试时 navigator 可能存在但没有 language，别在这儿炸
-  const nav = (typeof navigator !== 'undefined' && navigator.language) || ''
-  if (nav.startsWith('zh')) return /TW|HK|MO|Hant/i.test(nav) ? 'zh-TW' : 'zh-CN'
-  if (nav.startsWith('ja')) return 'ja'
-  if (nav.startsWith('ko')) return 'ko'
-  if (nav.startsWith('en')) return 'en'
   return FALLBACK
 }
 

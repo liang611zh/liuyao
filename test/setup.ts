@@ -20,7 +20,7 @@ Object.defineProperty(globalThis, 'localStorage', {
   configurable: true,
 })
 
-// i18n 在模块加载时就会 detectLang()，而 node 的 navigator.language 是 en-US，
-// 会让「甲子日」变成「甲子 Day」。断言比的是中文标准答案，这里先把语言钉死。
+// 断言比的是中文标准答案（「甲子日」而不是「甲子 Day」），这里把语言钉死，
+// 免得测试结果取决于 detectLang() 的默认值怎么定。
 // setupFiles 早于测试文件的 import 执行，所以这一行赶得上。
 store.set('liuyao_lang', 'zh-CN')
