@@ -8,7 +8,7 @@ on:
 
 jobs:
   validate:
-    name: Validate HTML & JS
+    name: Validate & test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,14 +16,19 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Check file structure
         run: |
           echo "Checking required files..."
-          for f in index.html css/style.css js/config.js js/i18n.js js/data.js js/app.js \
-                   js/ai.js js/analytics.js js/history.js js/supabase.js \
-                   supabase/schema.sql scripts/build-config.mjs; do
+          for f in index.html src/main.tsx src/App.tsx src/index.css \
+                   src/lib/config.ts src/lib/i18n.ts src/lib/data.ts src/lib/paipan.ts \
+                   src/lib/ai.ts src/lib/analytics.ts src/lib/history.ts src/lib/supabase.ts \
+                   supabase/schema.sql scripts/build-config.mjs vite.config.ts; do
             if [ ! -f "$f" ]; then
               echo "❌ Missing: $f"
               exit 1
@@ -31,15 +36,30 @@ jobs:
             echo "✅ $f"
           done
 
-      - name: Validate HTML
-        run: npx --yes html-validate@latest index.html
+      - name: Typecheck
+        run: npm run typecheck
 
-      - name: Lint JavaScript
+      # 排盘正确性测试：八卦位序、64 卦查表、纳甲内外卦、六神起例、
+      # 干支历与旬空、完整排盘比对传统标准答案、卦例记录时区无关性。
+      # 详见 test/paipan.test.ts
+      - name: Verify divination correctness
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Validate built HTML
+        run: npx --yes html-validate@latest dist/index.html
+
+      # src/lib 是框架无关的纯逻辑层，测试直接在 node 里 import 它。
+      # 一旦这里混进 React，测试就得拖进整个渲染环境，那道防线也就废了。
+      - name: Keep the logic layer framework-free
         run: |
-          npx --yes eslint@8 js/*.js test/*.js --no-eslintrc \
-            --env browser,es2021 \
-            --parser-options=ecmaVersion:2021 \
-            --rule '{"no-undef":"off","no-unused-vars":"warn","no-redeclare":"error","eqeqeq":"warn"}'
+          if grep -rlE "from ['\"](react|react-dom)" src/lib/; then
+            echo "❌ src/lib/ 不应依赖 React —— 那层要能在 node 里直接跑测试"
+            exit 1
+          fi
+          echo "✅ src/lib/ 保持框架无关"
 
       - name: Check for sensitive files
         run: |
@@ -56,53 +76,32 @@ jobs:
           fi
           echo "✅ No sensitive files found"
 
-      - name: Check script load order
-        run: |
-          echo "Verifying script load order in index.html..."
-          ORDER="config analytics i18n data history supabase ai app"
-          PREV=0
-          for name in $ORDER; do
-            LINE=$(grep -n "js/$name.js" index.html | head -1 | cut -d: -f1)
-            if [ -z "$LINE" ]; then
-              echo "❌ js/$name.js not referenced in index.html"
-              exit 1
-            fi
-            if [ "$LINE" -le "$PREV" ]; then
-              echo "❌ Script order wrong! Must be: $ORDER"
-              exit 1
-            fi
-            PREV=$LINE
-          done
-          echo "✅ Script order correct: $ORDER"
-
-      # 排盘正确性测试：八卦位序、64 卦查表、纳甲内外卦、六神起例、
-      # 干支历与旬空、完整排盘比对传统标准答案。详见 test/paipan.test.js
-      - name: Verify divination correctness
-        run: node test/paipan.test.js
-
       - name: Check analytics privacy invariants
         run: |
           echo "Ensuring analytics never captures question text or API keys..."
-          if grep -nE "track\([^)]*(question|apiKey|api_key)\s*[,:)]" js/*.js | grep -v "has_question"; then
+          if grep -rnE "track\([^)]*(question|apiKey|api_key)\s*[,:)]" src/ | grep -v "has_question"; then
             echo "❌ Analytics may be capturing sensitive values"
             exit 1
           fi
-          if ! grep -q "autocapture: false" js/analytics.js; then
-            echo "❌ autocapture must stay disabled (it would capture #question-text)"
+          if ! grep -q "autocapture: false" src/lib/analytics.ts; then
+            echo "❌ autocapture must stay disabled (it would capture the question textarea)"
             exit 1
           fi
-          if ! grep -q "disable_session_recording: true" js/analytics.js; then
+          if ! grep -q "disable_session_recording: true" src/lib/analytics.ts; then
             echo "❌ session recording must stay disabled"
             exit 1
           fi
           echo "✅ Analytics privacy invariants hold"
 
       # 本项目开源。真实 key 由 scripts/build-config.mjs 在部署时从环境变量注入，
-      # 仓库里的 js/config.js 必须保持空值。这一步是误提交的兜底闸门。
+      # 仓库里的 src/lib/config.ts 必须保持空值。这一步是误提交的兜底闸门。
+      #
+      # 注意：上面的 build 步骤会就地改写这个文件，所以先还原再检查。
       - name: Ensure committed config stays blank
         run: |
-          if grep -qE "^const (POSTHOG_KEY|SUPABASE_URL|SUPABASE_ANON_KEY) = ['\"].+['\"]" js/config.js; then
-            echo "❌ js/config.js contains a real value — it must stay blank in the repo."
+          git checkout -- src/lib/config.ts
+          if grep -qE "^export const (POSTHOG_KEY|SUPABASE_URL|SUPABASE_ANON_KEY) = ['\"].+['\"]" src/lib/config.ts; then
+            echo "❌ src/lib/config.ts contains a real value — it must stay blank in the repo."
             echo "   Set the value in the deployment environment instead (see scripts/build-config.mjs)."
             exit 1
           fi
@@ -166,5 +165,5 @@ jobs:
           set -e
           # 把仓库里的空壳配置还原，避免上面的失败尝试留下残迹
           # （拦截逻辑在写文件之前就退出，这里只是防御性兜底）
-          git checkout -- js/config.js || true
+          git checkout -- src/lib/config.ts || true
           echo "✅ build-config.mjs rejects secrets"

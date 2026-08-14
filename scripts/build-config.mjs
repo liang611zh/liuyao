@@ -1,10 +1,13 @@
 // ============================================================
-// 构建时把服务器环境变量注入 js/config.js
+// 构建时把服务器环境变量注入 src/lib/config.ts
 // ============================================================
 //
+// 由 package.json 的 build 脚本在 vite build 之前执行：
+//   "build": "node scripts/build-config.mjs && vite build"
+//
 // Vercel 项目设置 → Build & Development Settings：
-//   Build Command:    node scripts/build-config.mjs
-//   Output Directory: .
+//   Build Command:    npm run build
+//   Output Directory: dist
 //
 // 环境变量在 Vercel 项目设置 → Environment Variables 里配置：
 //   POSTHOG_KEY        PostHog Project API Key（phc_ 开头）
@@ -22,7 +25,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = join(ROOT, 'js', 'config.js');
+const OUT = join(ROOT, 'src', 'lib', 'config.ts');
 
 const env = process.env;
 
@@ -136,25 +139,29 @@ const output = `// ============================================================
 // 这里的值会出现在浏览器中 —— 它们是前端 SDK 的公开凭据。
 // Supabase anon key 的权限完全由 RLS 策略约束；PostHog key 只能写不能读。
 
-const POSTHOG_KEY = ${s(posthogKey)};
-const POSTHOG_HOST = '/ingest';
-const POSTHOG_UI_HOST = ${s(posthogUiHost)};
+export const POSTHOG_KEY = ${s(posthogKey)}
+export const POSTHOG_HOST = '/ingest'
+export const POSTHOG_UI_HOST = ${s(posthogUiHost)}
 
-const SUPABASE_URL = ${s(supabaseUrl)};
-const SUPABASE_ANON_KEY = ${s(supabaseAnonKey)};
-const OAUTH_PROVIDERS = ${s(oauthProviders)};
+export const SUPABASE_URL = ${s(supabaseUrl)}
+export const SUPABASE_ANON_KEY = ${s(supabaseAnonKey)}
+export const OAUTH_PROVIDERS: string[] = ${s(oauthProviders)}
 
-const ANALYTICS_HOSTS = ${s(analyticsHosts)};
-const CLOUD_HOSTS = ${s(cloudHosts)};
+export const ANALYTICS_HOSTS: string[] = ${s(analyticsHosts)}
+export const CLOUD_HOSTS: string[] = ${s(cloudHosts)}
 
-function isHostAllowed(hosts) {
-  return Array.isArray(hosts) && hosts.includes(location.hostname);
+export function isHostAllowed(hosts: string[]): boolean {
+  return (
+    Array.isArray(hosts) &&
+    typeof location !== 'undefined' &&
+    hosts.includes(location.hostname)
+  )
 }
 `;
 
 writeFileSync(OUT, output, 'utf8');
 
-console.log('✅ js/config.js 已生成');
+console.log('✅ src/lib/config.ts 已生成');
 console.log(`   统计：${posthogKey ? '启用' : '关闭（POSTHOG_KEY 未设置）'}`);
 console.log(`   账户：${supabaseUrl && supabaseAnonKey ? '启用' : '关闭（SUPABASE_* 未设置）'}`);
 console.log(`   第三方登录：${oauthProviders.length ? oauthProviders.join(', ') : '（无，仅邮箱）'}`);

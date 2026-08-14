@@ -6,7 +6,7 @@
 //    不要在这里填真实的 key —— 仓库里这份必须保持空值。
 //    真实值放在 Vercel 项目的 Environment Variables 里，构建时才注入。
 //
-// 保持空值意味着：clone 下来直接打开也能用，只是统计和账户功能关闭，
+// 保持空值意味着：clone 下来 npm run dev 也能用，只是统计和账户功能关闭，
 // 卦例存在本机 localStorage。
 //
 // ── 关于「暴露」的边界 ──
@@ -34,21 +34,21 @@
 // ------------------------------------------------------------
 
 // 留空 = 完全关闭统计，不加载 SDK、不发任何请求
-const POSTHOG_KEY = '';
+export const POSTHOG_KEY = ''
 
 // 走同源反代（见 vercel.json），绕开广告拦截器对 posthog.com 的拦截
-const POSTHOG_HOST = '/ingest';
+export const POSTHOG_HOST = '/ingest'
 
 // PostHog 控制台地址，仅用于 SDK 内的跳转链接。环境变量 POSTHOG_UI_HOST
-const POSTHOG_UI_HOST = 'https://us.posthog.com';
+export const POSTHOG_UI_HOST = 'https://us.posthog.com'
 
 // ------------------------------------------------------------
 // 账户与云端卦例 (Supabase) —— 环境变量 SUPABASE_URL / SUPABASE_ANON_KEY
 // ------------------------------------------------------------
 
 // 留空 = 完全关闭账户功能，卦例只存本机 localStorage
-const SUPABASE_URL = '';
-const SUPABASE_ANON_KEY = '';
+export const SUPABASE_URL = ''
+export const SUPABASE_ANON_KEY = ''
 
 // 启用哪些第三方登录（环境变量 OAUTH_PROVIDERS，逗号分隔）。
 // 列在这里的 provider 必须先在 Supabase 控制台 Authentication → Providers 里开启并配好，
@@ -57,7 +57,7 @@ const SUPABASE_ANON_KEY = '';
 // ⚠️ Google 在中国大陆无法访问。本应用默认语言是简体中文，主力用户多在墙内，
 //    因此邮箱 Magic Link 必须一并保留，不能只留 SSO。
 //    GitHub 在墙内基本可达，可作为补充。
-const OAUTH_PROVIDERS = ['google'];
+export const OAUTH_PROVIDERS: string[] = ['google']
 
 // ------------------------------------------------------------
 // 域名白名单
@@ -67,13 +67,17 @@ const OAUTH_PROVIDERS = ['google'];
 // 构建时默认取 Vercel 的生产域名，可用环境变量 ANALYTICS_HOSTS / CLOUD_HOSTS
 // 覆盖（逗号分隔）。
 
-const ANALYTICS_HOSTS = [];
-const CLOUD_HOSTS = [];
+export const ANALYTICS_HOSTS: string[] = []
+export const CLOUD_HOSTS: string[] = []
 
 // ------------------------------------------------------------
 
 // 本地开发（localhost / 127.0.0.1）不在白名单内，
 // 因此调试时不会把测试数据打进生产项目
-function isHostAllowed(hosts) {
-  return Array.isArray(hosts) && hosts.includes(location.hostname);
+export function isHostAllowed(hosts: string[]): boolean {
+  return (
+    Array.isArray(hosts) &&
+    typeof location !== 'undefined' &&
+    hosts.includes(location.hostname)
+  )
 }

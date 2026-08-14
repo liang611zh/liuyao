@@ -13,24 +13,31 @@
 - **复制卦象** — 一键复制排盘结果，可粘贴到任意 AI 对话中手动解读
 - **保存结果图** — 截图下载排盘结果
 - **卦例历史** — 起卦自动存档，可随时翻回重看；登录后跨设备同步
+- **双主题** — 宣纸（亮）与夜观天象（暗）两套中式配色，默认暗色
+- **多语言** — 简中 / 繁中 / 英 / 日 / 韩，切换即时生效，不刷新页面
 
 ### 排盘约定
 
 - **纳甲**：内卦（初/二/三爻）与外卦（四/五/上爻）分别取用各自的干支，两者不同
 - **六神**：甲乙起青龙、丙丁起朱雀、戊起勾陈、己起螣蛇、庚辛起白虎、壬癸起玄武
-- **换日**：采用「晚子时」派，23:00 起即换日干支（改 `js/app.js` 的 `LATE_ZI_ADVANCES_DAY` 可切回按日历日）
+- **换日**：采用「晚子时」派，23:00 起即换日干支（改 `src/lib/paipan.ts` 的 `LATE_ZI_ADVANCES_DAY` 可切回按日历日）
 - **旬空**：由六十甲子日序推出，甲子旬空戌亥、甲戌旬空申酉，依此类推
 - **尚未实现**：月建（需节气历）、伏神。AI prompt 中已注明未推月建
 
 ## 测试
 
 ```bash
-node test/paipan.test.js
+npm test          # 排盘正确性（vitest，91 项）
+npm run typecheck # TypeScript 严格模式
 ```
 
-零依赖。覆盖八卦位序、64 卦查表往返、八纯卦纳甲、六神起例、干支历与旬空，
-并拿传统标准答案逐爻核对一盘完整排盘；另外覆盖卦例记录的序列化往返与时区无关性。
-改动 `js/data.js` 前请先确认全绿。
+覆盖八卦位序、64 卦查表往返、八纯卦纳甲、六神起例、干支历与旬空，
+并拿传统标准答案逐爻核对一盘完整排盘；另外覆盖卦例记录的序列化往返、
+时区无关性、五种语言的词条完整性与 AI 提供商配置。
+改动 `src/lib/data.ts` 或 `src/lib/paipan.ts` 前请先确认全绿。
+
+测试直接在 node 里 import `src/lib/`，不拖渲染环境 —— 这也是那一层
+刻意保持框架无关的原因，CI 里有断言守着它不许 import React。
 
 ```bash
 node scripts/scan-secrets.mjs   # 扫描仓库里有没有误提交的凭据
@@ -42,23 +49,23 @@ node scripts/scan-secrets.mjs   # 扫描仓库里有没有误提交的凭据
 
 ## 技术栈
 
-- 纯 HTML / CSS / JavaScript，无框架依赖
-- 外部依赖仅 [html2canvas](https://html2canvas.hertzen.com/)（CDN 加载）
-- 移动端优先响应式设计
+- [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) + [Vite](https://vite.dev/)
+- [Tailwind CSS v4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/)（Radix 无样式组件 + 自定义中式主题）
+- 移动端优先响应式设计，`max-width: 28rem`
+
+按需加载：Supabase SDK 与 html2canvas-pro 都走动态 `import`，Vite 切成独立 chunk。
+没登录、没点「保存结果图」的访客一个字节都不会下载。
+
+排盘逻辑（`src/lib/`）与 UI 层严格分离，前者是不依赖任何框架的纯函数。
 
 ## 本地运行
 
-无需安装任何依赖，直接打开即可：
-
 ```bash
-# 方式一：直接打开
-open index.html
-
-# 方式二：本地服务器（推荐，避免 CORS 问题）
-npx serve .
-# 或
-python3 -m http.server 8000
+npm install
+npm run dev
 ```
+
+不配任何环境变量也能完整使用，只是统计和账户功能关闭、卦例存本机 localStorage。
 
 ## AI 解卦配置
 
@@ -126,7 +133,7 @@ AI 解读的正文（只记录字数与耗时）。`autocapture` 与 session rec
 
 ## 部署配置
 
-**仓库里不含任何 key。** `js/config.js` 的值全为空，因此 clone 下来直接打开就能用，
+**仓库里不含任何 key。** `src/lib/config.ts` 的值全为空，因此 clone 下来 `npm run dev` 就能用，
 只是统计和账户功能关闭，卦例存本机。
 
 真实值放在部署环境的环境变量里，构建时由 `scripts/build-config.mjs` 注入：
@@ -141,8 +148,9 @@ AI 解读的正文（只记录字数与耗时）。`autocapture` 与 session rec
 | `ANALYTICS_HOSTS` | 可选，逗号分隔；默认取 Vercel 生产域名 |
 | `CLOUD_HOSTS` | 可选，同上 |
 
-Vercel 项目设置里 Build Command 填 `node scripts/build-config.mjs`，Output Directory 填 `.`
-（`vercel.json` 已配好）。Supabase 侧还需要：
+Vercel 项目设置里 Build Command 填 `npm run build`，Output Directory 填 `dist`
+（`vercel.json` 已配好；`npm run build` 会先跑 `build-config.mjs` 生成配置再交给 Vite）。
+Supabase 侧还需要：
 
 1. SQL Editor 执行 `supabase/schema.sql` 建表并开启 RLS
 2. Authentication → URL Configuration → Redirect URLs 加上本站域名
@@ -174,21 +182,28 @@ Supabase。本地开发（localhost）不在白名单内，调试不会污染生
 ## 项目结构
 
 ```
-index.html              — 单页应用入口
-css/style.css           — 样式（仿古风格、铜钱动画、响应式）
-js/config.js            — 部署配置（仓库内为空，构建时注入）
-js/data.js              — 数据层（八卦、六十四卦、八宫、纳甲、六神等）
-js/app.js               — 应用逻辑（干支历、旬空、摇卦算法、排盘计算、UI）
-js/ai.js                — AI 解卦模块（多模型适配、流式输出）
-js/i18n.js              — 多语言（简中/繁中/英/日/韩）
-js/history.js           — 卦例记录层（记录格式、本地历史、从记录重建排盘）
-js/supabase.js          — 账户与云端同步（默认关闭）
-js/analytics.js         — 匿名统计（PostHog，默认关闭）
-supabase/schema.sql     — 数据库表结构与 RLS 策略
-scripts/build-config.mjs— 构建时从环境变量生成 js/config.js
-scripts/scan-secrets.mjs— 凭据泄露扫描
-test/paipan.test.js     — 排盘与记录正确性测试
-vercel.json             — 构建命令与 PostHog 反向代理
+index.html                    — Vite 入口
+src/main.tsx                  — 应用挂载、主题与统计初始化
+src/App.tsx                   — 五个界面的路由与起卦状态机
+src/index.css                 — 设计令牌（宣纸/夜观天象两套皮）、铜钱动画、回纹
+src/lib/                      — 纯逻辑层，不依赖 React，测试直接 import
+  config.ts                   — 部署配置（仓库内为空，构建时注入）
+  data.ts                     — 八卦、六十四卦、八宫、纳甲、六神等静态表
+  paipan.ts                   — 干支历、旬空、摇卦、纳甲、六亲、世应
+  i18n.ts                     — 多语言词典与 t()
+  history.ts                  — 卦例记录格式、本地历史、从记录重建排盘
+  supabase.ts                 — 账户与云端同步（默认关闭）
+  analytics.ts                — 匿名统计（PostHog，默认关闭）
+  ai.ts                       — AI 解卦（多模型适配、SSE 流式解析）
+src/components/ui/            — shadcn/ui 组件（npx shadcn add 生成）
+src/components/               — 业务组件（铜钱、爻线、排盘表、弹窗等）
+src/components/screens/       — 起始页 / 摇卦 / 手动录入 / 卦例历史 / 排盘结果
+src/hooks/                    — useLang、useAccount
+supabase/schema.sql           — 数据库表结构与 RLS 策略
+scripts/build-config.mjs      — 构建时从环境变量生成 src/lib/config.ts
+scripts/scan-secrets.mjs      — 凭据泄露扫描
+test/paipan.test.ts           — 排盘与记录正确性测试（vitest）
+vercel.json                   — 构建命令与 PostHog 反向代理
 ```
 
 ## 许可证

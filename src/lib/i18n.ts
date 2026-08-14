@@ -1,62 +1,115 @@
 // ============================================================
-// 六爻排盘 - 多语言支持
+// 六爻排盘 - 多语言
 // ============================================================
+//
+// 本模块刻意零依赖 —— analytics 要读当前语言，若这里反过来 import analytics
+// 就成了循环依赖。语言切换的埋点由调用方（UI 层）自己打。
+//
+// 切换语言不再整页 reload：currentLang 变更后通知订阅者，
+// React 侧 re-render 即可。因此所有取译文的地方都必须在 render 期间调 t()，
+// 不要把译文缓存进 state。
 
-const SUPPORTED_LANGS = {
+export const SUPPORTED_LANGS = {
   'zh-CN': '简体中文',
   'zh-TW': '繁體中文',
-  'en':    'English',
-  'ja':    '日本語',
-  'ko':    '한국어',
-};
+  en: 'English',
+  ja: '日本語',
+  ko: '한국어',
+} as const
 
-let currentLang = localStorage.getItem('liuyao_lang') || 'zh-CN';
+export type Lang = keyof typeof SUPPORTED_LANGS
 
-function t(key, params) {
+const LANG_KEY = 'liuyao_lang'
+const FALLBACK: Lang = 'zh-CN'
+
+function isLang(v: unknown): v is Lang {
+  return typeof v === 'string' && v in SUPPORTED_LANGS
+}
+
+// 优先用户上次的选择，其次浏览器偏好，最后回落简中
+function detectLang(): Lang {
+  try {
+    const saved = localStorage.getItem(LANG_KEY)
+    if (isLang(saved)) return saved
+  } catch {
+    /* 隐私模式下读不到，往下走 */
+  }
+  // node 里跑测试时 navigator 可能存在但没有 language，别在这儿炸
+  const nav = (typeof navigator !== 'undefined' && navigator.language) || ''
+  if (nav.startsWith('zh')) return /TW|HK|MO|Hant/i.test(nav) ? 'zh-TW' : 'zh-CN'
+  if (nav.startsWith('ja')) return 'ja'
+  if (nav.startsWith('ko')) return 'ko'
+  if (nav.startsWith('en')) return 'en'
+  return FALLBACK
+}
+
+let currentLang: Lang = detectLang()
+const listeners = new Set<() => void>()
+
+export function getLang(): Lang {
+  return currentLang
+}
+
+export function setLanguage(lang: Lang): void {
+  if (lang === currentLang) return
+  currentLang = lang
+  try {
+    localStorage.setItem(LANG_KEY, lang)
+  } catch {
+    /* 存不下也不影响本次会话 */
+  }
+  // 让 <html lang> 跟随所选语言，影响读屏软件发音、断行规则与搜索引擎收录
+  if (typeof document !== 'undefined') document.documentElement.lang = lang
+  listeners.forEach((fn) => fn())
+}
+
+// 供 React 的 useSyncExternalStore 用
+export function subscribeLang(fn: () => void): () => void {
+  listeners.add(fn)
+  return () => listeners.delete(fn)
+}
+
+function lookup(key: string): unknown {
   // 必须用 in 判断而不是 ||：有些条目的合法取值就是空字符串
   // （如 zh-CN 的 ai_prompt_lang），用 || 会把它当成缺失，最后把 key 名本身当译文吐出来
-  const dict = I18N[currentLang];
-  let str;
-  if (dict && key in dict) str = dict[key];
-  else if (key in I18N['zh-CN']) str = I18N['zh-CN'][key];
-  else str = key;
+  const dict = I18N[currentLang]
+  if (dict && key in dict) return dict[key]
+  if (key in I18N[FALLBACK]) return I18N[FALLBACK][key]
+  return key
+}
+
+export function t(key: string, params?: Record<string, string | number>): string {
+  const raw = lookup(key)
+  let str = typeof raw === 'string' ? raw : key
   if (params) {
     for (const [k, v] of Object.entries(params)) {
-      str = str.replaceAll(`{${k}}`, v);
+      str = str.replaceAll(`{${k}}`, String(v))
     }
   }
-  return str;
+  return str
 }
 
-function setLanguage(lang) {
-  const from = currentLang;
-  currentLang = lang;
-  localStorage.setItem('liuyao_lang', lang);
-  // 紧接着就 reload，用 sendBeacon 保证事件不被打断
-  track('lang_changed', { from, to: lang }, { transport: 'sendBeacon' });
-  location.reload();
+// 数组条目（pos_names / shichen_names）
+export function tList(key: string): string[] {
+  const raw = lookup(key)
+  return Array.isArray(raw) ? (raw as string[]) : []
 }
 
-function applyLanguage() {
-  document.querySelectorAll('[data-i18n]').forEach(el => {
-    el.textContent = t(el.dataset.i18n);
-  });
-  document.querySelectorAll('[data-i18n-html]').forEach(el => {
-    el.innerHTML = t(el.dataset.i18nHtml);
-  });
-  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-    el.placeholder = t(el.dataset.i18nPlaceholder);
-  });
-  document.title = t('app_title');
-  // 让 <html lang> 跟随所选语言，影响读屏软件发音、断行规则与搜索引擎收录
-  document.documentElement.lang = currentLang;
+// 映射条目（yao_labels: { 6: '老阴', … }）
+export function tMap(key: string): Record<string, string> {
+  const raw = lookup(key)
+  return raw && typeof raw === 'object' && !Array.isArray(raw)
+    ? (raw as Record<string, string>)
+    : {}
 }
 
 // ============================================================
 // 翻译数据
 // ============================================================
 
-const I18N = {
+type Dict = Record<string, unknown>
+
+export const I18N: Record<Lang, Dict> = {
 
 // ---- 简体中文 ----
 'zh-CN': {
@@ -179,6 +232,21 @@ const I18N = {
   ai_placeholder_model: '模型 ID',
 
   ai_prompt_lang: '',  // 留空表示默认中文
+
+  // 新 UI（主题切换、徽标、空态）
+  btn_cancel: '取消',
+  settings_key_notice: 'API Key 只保存在你自己的浏览器里，不会上传到任何服务器。',
+  theme_toggle: '切换主题',
+  theme_light: '浅色',
+  theme_dark: '深色',
+  lang_label: '语言',
+  copy_failed: '复制失败',
+  btn_close: '关闭',
+  history_badge_synced: '已同步',
+  history_badge_local: '本机',
+  ai_empty_hint: '选好模型后点「开始解读」，结果会逐字显示在这里',
+  manual_coin_hint: '点击铜钱切换正反面',
+  result_palace_rank: '{palace}宫 · 第 {n} 卦',
 },
 
 // ---- 繁體中文 ----
@@ -299,6 +367,21 @@ const I18N = {
   ai_placeholder_model: '模型 ID',
 
   ai_prompt_lang: '請用繁體中文回答。',
+
+  // 新 UI（主题切换、徽标、空态）
+  btn_cancel: '取消',
+  settings_key_notice: 'API Key 只保存在你自己的瀏覽器裡，不會上傳到任何伺服器。',
+  theme_toggle: '切換主題',
+  theme_light: '淺色',
+  theme_dark: '深色',
+  lang_label: '語言',
+  copy_failed: '複製失敗',
+  btn_close: '關閉',
+  history_badge_synced: '已同步',
+  history_badge_local: '本機',
+  ai_empty_hint: '選好模型後點「開始解讀」，結果會逐字顯示在這裡',
+  manual_coin_hint: '點擊銅錢切換正反面',
+  result_palace_rank: '{palace}宮 · 第 {n} 卦',
 },
 
 // ---- English ----
@@ -419,6 +502,21 @@ const I18N = {
   ai_placeholder_model: 'Model ID',
 
   ai_prompt_lang: 'Please respond in English.',
+
+  // 新 UI（主题切换、徽标、空态）
+  btn_cancel: 'Cancel',
+  settings_key_notice: 'Your API key is stored only in this browser and never sent to any server.',
+  theme_toggle: 'Toggle theme',
+  theme_light: 'Light',
+  theme_dark: 'Dark',
+  lang_label: 'Language',
+  copy_failed: 'Copy failed',
+  btn_close: 'Close',
+  history_badge_synced: 'Synced',
+  history_badge_local: 'Local',
+  ai_empty_hint: 'Pick a model and tap Interpret — the reading streams in here.',
+  manual_coin_hint: 'Tap a coin to flip it',
+  result_palace_rank: '{palace} Palace · No. {n}',
 },
 
 // ---- 日本語 ----
@@ -539,6 +637,21 @@ const I18N = {
   ai_placeholder_model: 'モデルID',
 
   ai_prompt_lang: '日本語で回答してください。',
+
+  // 新 UI（主题切换、徽标、空态）
+  btn_cancel: 'キャンセル',
+  settings_key_notice: 'API キーはこのブラウザにのみ保存され、サーバーには送信されません。',
+  theme_toggle: 'テーマ切替',
+  theme_light: 'ライト',
+  theme_dark: 'ダーク',
+  lang_label: '言語',
+  copy_failed: 'コピー失敗',
+  btn_close: '閉じる',
+  history_badge_synced: '同期済み',
+  history_badge_local: 'ローカル',
+  ai_empty_hint: 'モデルを選んで「解釈開始」を押すと、ここに逐次表示されます',
+  manual_coin_hint: 'コインをタップで裏表を切替',
+  result_palace_rank: '{palace}宮 · 第 {n} 卦',
 },
 
 // ---- 한국어 ----
@@ -659,6 +772,21 @@ const I18N = {
   ai_placeholder_model: '모델 ID',
 
   ai_prompt_lang: '한국어로 답변해주세요.',
+
+  // 新 UI（主题切换、徽标、空态）
+  btn_cancel: '취소',
+  settings_key_notice: 'API 키는 이 브라우저에만 저장되며 서버로 전송되지 않습니다.',
+  theme_toggle: '테마 전환',
+  theme_light: '라이트',
+  theme_dark: '다크',
+  lang_label: '언어',
+  copy_failed: '복사 실패',
+  btn_close: '닫기',
+  history_badge_synced: '동기화됨',
+  history_badge_local: '로컬',
+  ai_empty_hint: '모델을 고르고 「해석 시작」을 누르면 여기에 표시됩니다',
+  manual_coin_hint: '동전을 눌러 앞뒤를 바꾸세요',
+  result_palace_rank: '{palace}궁 · 제 {n} 괘',
 },
 
-};
+}

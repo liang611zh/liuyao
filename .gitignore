@@ -1,7 +1,7 @@
 .DS_Store
 
 # 环境变量绝不进仓库。真实 key 配在 Vercel 项目的 Environment Variables 里，
-# 由 scripts/build-config.mjs 在构建时注入 js/config.js
+# 由 scripts/build-config.mjs 在构建时注入 src/lib/config.ts
 .env
 .env.*
 !.env.example
@@ -12,3 +12,8 @@
 credentials.json
 
 node_modules/
+dist/
+*.local
+
+# JetBrains
+.idea/

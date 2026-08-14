@@ -1,0 +1,428 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================
+   六爻排盘 — 观星台
+   shadcn 的令牌体系，中式的墨 / 金 / 朱砂 / 宣纸
+   ============================================================
+
+   两套皮都是中式的，不是「中式 + 通用」：
+     · 亮色 = 宣纸：米白纸面、松烟墨字、朱砂印、古铜线
+     · 暗色 = 夜观天象：墨夜底、象牙字、铜金线、朱砂点睛
+
+   所有颜色都在 :root / .dark 里成对定义，@theme inline 只做映射 ——
+   这样 shadcn 组件拿到的永远是同一组语义名（primary / muted / border …），
+   换皮不用改组件。
+   ============================================================ */
+
+:root {
+  /* 圆角克制：中式讲究方直，只在按钮/卡片给一点点收边 */
+  --radius: 0.375rem;
+
+  /* ---- 宣纸（亮色） ---- */
+  --background: oklch(0.962 0.011 85);
+  --foreground: oklch(0.215 0.012 275);
+
+  --card: oklch(0.985 0.007 85);
+  --card-foreground: oklch(0.215 0.012 275);
+  --popover: oklch(0.985 0.007 85);
+  --popover-foreground: oklch(0.215 0.012 275);
+
+  /* 朱砂 —— 印泥的红，中式视觉里最强的那一笔 */
+  --primary: oklch(0.523 0.186 28);
+  --primary-foreground: oklch(0.98 0.008 85);
+
+  --secondary: oklch(0.918 0.014 85);
+  --secondary-foreground: oklch(0.28 0.014 275);
+
+  --muted: oklch(0.918 0.014 85);
+  --muted-foreground: oklch(0.487 0.016 275);
+
+  --accent: oklch(0.905 0.026 82);
+  --accent-foreground: oklch(0.30 0.05 60);
+
+  --destructive: oklch(0.52 0.19 28);
+  --destructive-foreground: oklch(0.98 0.008 85);
+
+  --border: oklch(0.30 0.02 60 / 16%);
+  --input: oklch(0.30 0.02 60 / 22%);
+  --ring: oklch(0.523 0.186 28 / 45%);
+
+  /* ---- 中式扩展色（不属于 shadcn 标准集，供卦象/铜钱/装饰用） ---- */
+  --gold: oklch(0.548 0.088 75);
+  --gold-bright: oklch(0.66 0.115 80);
+  --gold-dim: oklch(0.62 0.045 78);
+  --cinnabar: oklch(0.523 0.186 28);
+  --ink: oklch(0.215 0.012 275);
+  --jade: oklch(0.50 0.075 165);
+
+  /* 爻线本体：亮色用墨，暗色用铜金 */
+  --yao-line: oklch(0.26 0.014 275);
+  --seal: oklch(0.523 0.186 28);
+}
+
+.dark {
+  /* ---- 夜观天象（暗色） ---- */
+  --background: oklch(0.132 0.016 275);
+  --foreground: oklch(0.903 0.017 85);
+
+  --card: oklch(0.176 0.019 275);
+  --card-foreground: oklch(0.903 0.017 85);
+  --popover: oklch(0.166 0.019 275);
+  --popover-foreground: oklch(0.903 0.017 85);
+
+  /* 暗底上朱砂要提亮，否则糊进背景 */
+  --primary: oklch(0.585 0.178 28);
+  --primary-foreground: oklch(0.96 0.012 85);
+
+  --secondary: oklch(0.238 0.021 275);
+  --secondary-foreground: oklch(0.88 0.017 85);
+
+  --muted: oklch(0.238 0.021 275);
+  --muted-foreground: oklch(0.648 0.018 85);
+
+  --accent: oklch(0.268 0.030 78);
+  --accent-foreground: oklch(0.80 0.10 82);
+
+  --destructive: oklch(0.60 0.175 28);
+  --destructive-foreground: oklch(0.96 0.012 85);
+
+  --border: oklch(0.75 0.11 82 / 16%);
+  --input: oklch(0.75 0.11 82 / 22%);
+  --ring: oklch(0.75 0.11 82 / 45%);
+
+  --gold: oklch(0.752 0.108 82);
+  --gold-bright: oklch(0.845 0.135 88);
+  --gold-dim: oklch(0.578 0.070 78);
+  --cinnabar: oklch(0.618 0.175 28);
+  --ink: oklch(0.10 0.014 275);
+  --jade: oklch(0.62 0.082 165);
+
+  --yao-line: oklch(0.812 0.098 82);
+  --seal: oklch(0.618 0.175 28);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-gold: var(--gold);
+  --color-gold-bright: var(--gold-bright);
+  --color-gold-dim: var(--gold-dim);
+  --color-cinnabar: var(--cinnabar);
+  --color-jade: var(--jade);
+  --color-ink: var(--ink);
+  --color-yao: var(--yao-line);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+
+  --font-serif: 'Noto Serif SC', 'Songti SC', 'SimSun', ui-serif, serif;
+  --font-brush: 'Ma Shan Zheng', 'Noto Serif SC', ui-serif, serif;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground font-serif antialiased;
+    min-height: 100dvh;
+    /* 起卦页会因铜钱动画产生瞬时高度变化，锁住滚动条避免整页左右跳 */
+    scrollbar-gutter: stable;
+  }
+
+  /* 数字用等宽字形，干支/时间/爻值排成列时不会左右抖 */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ============================================================
+   底纹：亮色是宣纸纤维，暗色是夜空星点
+   两者都用纯 CSS 画，不引任何图片资源
+   ============================================================ */
+
+@layer components {
+  .sanctum-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  /* 宣纸：极淡的经纬纹 + 边角微黄 */
+  .sanctum-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.5;
+    background-image:
+      repeating-linear-gradient(
+        90deg,
+        oklch(0.30 0.02 60 / 0.022) 0 1px,
+        transparent 1px 3px
+      ),
+      repeating-linear-gradient(
+        0deg,
+        oklch(0.30 0.02 60 / 0.022) 0 1px,
+        transparent 1px 3px
+      ),
+      radial-gradient(
+        ellipse 120% 80% at 50% 0%,
+        oklch(0.62 0.045 78 / 0.10),
+        transparent 60%
+      );
+  }
+
+  .dark .sanctum-bg::before {
+    opacity: 1;
+    background-image:
+      radial-gradient(1.5px 1.5px at 12% 18%, oklch(0.85 0.09 88 / 0.55), transparent),
+      radial-gradient(1px 1px at 34% 8%, oklch(0.90 0.02 85 / 0.42), transparent),
+      radial-gradient(1.5px 1.5px at 68% 22%, oklch(0.85 0.09 88 / 0.48), transparent),
+      radial-gradient(1px 1px at 88% 12%, oklch(0.90 0.02 85 / 0.38), transparent),
+      radial-gradient(1px 1px at 22% 44%, oklch(0.85 0.09 88 / 0.30), transparent),
+      radial-gradient(1.5px 1.5px at 78% 58%, oklch(0.90 0.02 85 / 0.34), transparent),
+      radial-gradient(1px 1px at 46% 72%, oklch(0.85 0.09 88 / 0.28), transparent),
+      radial-gradient(1px 1px at 8% 84%, oklch(0.90 0.02 85 / 0.26), transparent),
+      radial-gradient(1.5px 1.5px at 92% 88%, oklch(0.85 0.09 88 / 0.30), transparent),
+      radial-gradient(ellipse 100% 60% at 50% 0%, oklch(0.40 0.06 280 / 0.45), transparent 70%),
+      radial-gradient(ellipse 80% 50% at 50% 100%, oklch(0.35 0.08 30 / 0.16), transparent 70%);
+    animation: twinkle 6s ease-in-out infinite;
+  }
+
+  /* ---- 分隔线：一条两端淡出的金色发丝线 ----
+     试过用渐变拼「回纹」，在 1x 屏上糊成一排竖道子，像乱码不像纹样，
+     所以回纹只保留在标题下那一条真正的 SVG 纹带里，其余一律用这条素线。 */
+  .fret-rule {
+    height: 1px;
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      var(--gold) 18%,
+      var(--gold) 82%,
+      transparent
+    );
+    opacity: 0.32;
+  }
+
+  /* ---- 回纹带：正经的方折回纹，只用在标题底下 ---- */
+  .fret-band {
+    height: 10px;
+    opacity: 0.5;
+    background-repeat: repeat-x;
+    background-position: center;
+    background-size: auto 10px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='10' viewBox='0 0 24 10'%3E%3Cpath d='M0 8.5h2.5v-7h9v5h-4v-2.5h6.5v7h10' fill='none' stroke='%23c9a84c' stroke-width='1'/%3E%3C/svg%3E");
+    /* repeat-x 会在两端切出半截纹样，用遮罩把断口淡掉 */
+    mask-image: linear-gradient(90deg, transparent, black 22%, black 78%, transparent);
+  }
+
+  /* ---- 印章：朱砂方印，盖在标题旁 ---- */
+  .seal {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--seal);
+    color: oklch(0.97 0.01 85);
+    border-radius: 2px;
+    font-family: var(--font-brush);
+    line-height: 1;
+    box-shadow: 0 1px 6px oklch(0.52 0.19 28 / 0.35);
+    /* 印泥不匀：边缘留一点点噪点感 */
+    background-image: radial-gradient(
+      ellipse at 30% 25%,
+      oklch(1 0 0 / 0.16),
+      transparent 55%
+    );
+  }
+
+  /* ---- 卡片：中式的「框」比阴影更重要，因此走细金线而非重投影 ---- */
+  .rice-card {
+    @apply bg-card border rounded-lg;
+    box-shadow:
+      0 1px 2px oklch(0.20 0.02 275 / 0.05),
+      inset 0 1px 0 oklch(1 0 0 / 0.04);
+  }
+
+  .dark .rice-card {
+    box-shadow:
+      0 2px 16px oklch(0.05 0.01 275 / 0.5),
+      inset 0 1px 0 oklch(0.85 0.09 88 / 0.06);
+  }
+}
+
+/* ============================================================
+   铜钱：从旧版原样搬过来的形制与动画
+   五帝钱外圆内方，正面四字（顺治通宝），背面素面
+   ============================================================ */
+
+@layer components {
+  .coin {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+    perspective: 300px;
+    background: radial-gradient(
+      ellipse at 30% 25%,
+      #e8c050,
+      #c9a030 30%,
+      #9a7520 55%,
+      #6a5010 80%,
+      #4a3808 100%
+    );
+    border: 2px solid oklch(0.70 0.10 82 / 0.45);
+    box-shadow:
+      0 4px 14px oklch(0.10 0.01 275 / 0.45),
+      0 0 20px oklch(0.75 0.11 82 / 0.18),
+      inset 0 2px 4px oklch(0.95 0.09 92 / 0.35),
+      inset 0 -3px 6px oklch(0.15 0.02 60 / 0.3);
+  }
+
+  /* 内方孔 */
+  .coin::before {
+    content: '';
+    position: absolute;
+    width: 17px;
+    height: 17px;
+    background: var(--ink);
+    border: 2px solid oklch(0.42 0.05 70 / 0.6);
+    border-radius: 2px;
+    box-shadow: inset 0 1px 4px oklch(0.10 0.01 275 / 0.65);
+  }
+
+  /* 外缘细虚线，仿铸币的郭 */
+  .coin::after {
+    content: '';
+    position: absolute;
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    border: 1px dashed oklch(0.95 0.09 92 / 0.13);
+    pointer-events: none;
+  }
+
+  .coin-tails {
+    background: radial-gradient(
+      ellipse at 30% 25%,
+      #7a6a5a,
+      #4a3a2a 40%,
+      #2a2018 70%,
+      #1a1510 100%
+    );
+    border-color: #3a2a1a;
+  }
+
+  .coin-tails::before {
+    border-color: oklch(0.30 0.03 60 / 0.6);
+  }
+
+  .coin-face-text {
+    position: absolute;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #3a2800;
+    text-shadow: 0 0.5px 0 oklch(0.95 0.09 92 / 0.25);
+  }
+
+  .coin-slot {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    border: 2px dashed var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted-foreground);
+    font-size: 1.4rem;
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  .coin-flipping {
+    animation: coin-flip 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .coin-bouncing {
+    animation: coin-bounce 0.6s ease-out;
+  }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+@keyframes coin-flip {
+  0%   { transform: rotateX(0deg) rotateY(0deg); }
+  25%  { transform: rotateX(180deg) rotateY(90deg) scale(1.05); }
+  50%  { transform: rotateX(360deg) rotateY(180deg); }
+  75%  { transform: rotateX(540deg) rotateY(270deg) scale(1.05); }
+  100% { transform: rotateX(720deg) rotateY(360deg); }
+}
+
+@keyframes coin-bounce {
+  0%   { transform: translateY(0) scale(1); }
+  20%  { transform: translateY(-38px) scale(1.08); }
+  40%  { transform: translateY(-5px) scale(0.97); }
+  55%  { transform: translateY(-18px) scale(1.03); }
+  75%  { transform: translateY(-3px) scale(0.99); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px oklch(0.75 0.11 82 / 0.18); }
+  50%      { box-shadow: 0 0 18px oklch(0.75 0.11 82 / 0.35); }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.rise-in {
+  animation: rise-in 0.35s ease-out both;
+}
+
+/* 摇卦动画对前庭敏感人群不友好，系统开了减少动态就全部停掉 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

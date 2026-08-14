@@ -2,10 +2,10 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>六爻排盘</title>
   <meta name="description" content="基于传统纳甲筮法的六爻排盘工具。五帝钱起卦，自动计算本卦变卦、世应、六亲、六神、纳甲地支与旬空，支持 AI 解卦。">
-  <meta name="theme-color" content="#0c0c18">
+  <meta name="theme-color" content="#0a0a12">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>☰</text></svg>">
 
   <meta property="og:type" content="website">
@@ -20,189 +20,17 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- 字体异步加载，不阻塞首屏渲染 -->
   <link rel="stylesheet" media="print" onload="this.media='all'"
-        href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+SC:wght@400;600;700&display=swap">
+        href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;500;600;700&display=swap">
   <noscript>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Noto+Serif+SC:wght@400;600;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;500;600;700&display=swap">
   </noscript>
-  <link rel="stylesheet" href="css/style.css">
+
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
-  <div class="stars-bg" aria-hidden="true"></div>
-  <div class="app-container">
-
-    <!-- 顶栏：历史 / 账户 / 语言 -->
-    <div class="lang-switcher">
-      <button type="button" id="btn-history" class="top-btn" data-i18n="btn_history">历史</button>
-      <button type="button" id="btn-account" class="top-btn" data-i18n="btn_account">登录</button>
-      <select id="lang-select" class="lang-select" aria-label="Language"></select>
-    </div>
-
-    <!-- ==================== 起始页 ==================== -->
-    <div id="screen-start" class="start-screen">
-      <h1 class="app-title" data-i18n="app_title">六爻排盘</h1>
-      <p class="app-subtitle" data-i18n="app_subtitle">五帝钱起卦 · 传统纳甲筮法</p>
-
-      <div class="setting-row">
-        <span id="current-datetime" class="datetime-display"></span>
-      </div>
-      <div class="setting-row">
-        <span id="current-ganzhi" class="ganzhi-display"></span>
-      </div>
-
-      <div class="setting-row setting-row-spaced">
-        <label for="shichen-select" data-i18n="label_shichen">时辰：</label>
-        <select id="shichen-select" class="shichen-select"></select>
-      </div>
-
-      <div class="question-input">
-        <label for="question-text" data-i18n="label_question">占问之事（选填）</label>
-        <textarea id="question-text" rows="2" data-i18n-placeholder="placeholder_question" placeholder="可在此写下想问的事情，也可不填，心中默念即可"></textarea>
-      </div>
-
-      <div class="coin-guide">
-        <div class="coin-guide-title" data-i18n="coin_guide_title">铜钱/硬币正反面说明</div>
-        <div class="coin-guide-row">
-          <span class="coin-guide-dot dot-yang"></span>
-          <span data-i18n-html="coin_yang_html"><b>字（阳）</b>：有文字/数字的一面</span>
-        </div>
-        <div class="coin-guide-row">
-          <span class="coin-guide-dot dot-yin"></span>
-          <span data-i18n-html="coin_yin_html"><b>背（阴）</b>：有花纹/图案的一面</span>
-        </div>
-      </div>
-
-      <div class="mode-toggle">
-        <button type="button" id="btn-start" class="btn-primary" data-i18n="btn_random">随机起卦</button>
-        <button type="button" id="btn-manual" class="btn-secondary" data-i18n="btn_manual">手动录入</button>
-      </div>
-
-      <div class="privacy-note hidden" id="privacy-note">
-        <button type="button" id="btn-analytics-optout" class="link-btn" data-i18n="analytics_optout">不参与匿名统计</button>
-      </div>
-    </div>
-
-    <!-- ==================== 手动录入页 ==================== -->
-    <div id="screen-manual" class="manual-screen hidden">
-      <div class="throw-header">
-        <div class="throw-progress" data-i18n="manual_title">手动录入排盘</div>
-        <div class="throw-hint" data-i18n="manual_hint">逐爻录入铜钱结果（从初爻到上爻）</div>
-      </div>
-
-      <div class="manual-rows" id="manual-rows"></div>
-
-      <div class="manual-footer">
-        <button type="button" id="btn-manual-submit" class="btn-primary" disabled data-i18n="btn_generate">生成排盘</button>
-        <button type="button" id="btn-manual-back" class="btn-restart" data-i18n="btn_back">返回</button>
-      </div>
-    </div>
-
-    <!-- ==================== 卦例历史 ==================== -->
-    <div id="screen-history" class="history-screen hidden">
-      <div class="throw-header">
-        <div class="throw-progress" data-i18n="history_title">卦例历史</div>
-        <div class="throw-hint" id="history-hint"></div>
-      </div>
-
-      <div class="history-list" id="history-list"></div>
-
-      <div class="manual-footer">
-        <button type="button" id="btn-history-back" class="btn-restart" data-i18n="btn_back">返回</button>
-      </div>
-    </div>
-
-    <!-- ==================== 摇卦页 ==================== -->
-    <div id="screen-throwing" class="throwing-screen hidden">
-      <div class="throw-header">
-        <div id="throw-progress" class="throw-progress"></div>
-        <div id="throw-hint" class="throw-hint"></div>
-      </div>
-
-      <div class="coins-area">
-        <div id="coins-display"></div>
-        <div id="throw-result-text" class="throw-result"></div>
-      </div>
-
-      <div class="throw-preview">
-        <div class="preview-title" data-i18n="preview_title">卦象构建（下→上）</div>
-        <div id="throw-preview"></div>
-      </div>
-    </div>
-
-    <!-- ==================== 排盘结果 ==================== -->
-    <div id="screen-result" class="result-screen hidden">
-      <!-- 可截图区域 -->
-      <div id="capture-area" class="capture-area">
-        <div class="result-header">
-          <h2 data-i18n="result_header">卦象排盘</h2>
-          <div id="result-datetime" class="result-datetime"></div>
-          <div id="result-title"></div>
-          <div id="result-trigrams" class="result-trigrams"></div>
-        </div>
-
-        <div class="paipan-table">
-          <div id="result-table"></div>
-        </div>
-
-        <div class="capture-watermark" data-i18n="watermark">六爻排盘 · 纳甲筮法</div>
-      </div>
-
-      <div class="result-footer">
-        <button type="button" id="btn-copy-prompt" class="btn-copy-prompt" data-i18n="btn_copy">复制卦象结果</button>
-        <button type="button" id="btn-save" class="btn-save" data-i18n="btn_save">保存结果图</button>
-        <button type="button" id="btn-restart" class="btn-restart" data-i18n="btn_restart">重新起卦</button>
-      </div>
-      <div class="copy-hint hidden" id="copy-hint" data-i18n="copy_hint">已复制，可粘贴到任意 AI 对话中解读</div>
-
-      <!-- AI 自动解读 -->
-      <div class="ai-section">
-        <div class="ai-section-title" data-i18n="ai_section_title">AI 自动解读</div>
-        <div class="ai-controls">
-          <select id="ai-provider-select" class="ai-select"></select>
-          <button type="button" id="btn-ai-interpret" class="btn-ai" data-i18n="btn_ai_start">开始解读</button>
-          <button type="button" id="btn-ai-stop" class="btn-ai-stop hidden" data-i18n="btn_ai_stop">停止</button>
-          <button type="button" id="btn-ai-settings" class="btn-ai-settings" title="配置 API Key">⚙</button>
-        </div>
-        <div id="ai-output" class="ai-output hidden"></div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- 账户弹窗 -->
-  <div id="account-modal" class="modal-overlay hidden">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 data-i18n="account_title">账户</h3>
-        <button type="button" id="btn-account-close" class="modal-close">&times;</button>
-      </div>
-      <div id="account-body" class="settings-body"></div>
-    </div>
-  </div>
-
-  <!-- 设置弹窗 -->
-  <div id="settings-modal" class="modal-overlay hidden">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 data-i18n="settings_title">AI 模型配置</h3>
-        <button type="button" id="btn-settings-close" class="modal-close">&times;</button>
-      </div>
-      <div id="settings-body" class="settings-body"></div>
-      <div class="modal-footer">
-        <button type="button" id="btn-settings-save" class="btn-primary btn-modal-save" data-i18n="btn_settings_save">保存</button>
-      </div>
-    </div>
-  </div>
-
-  <script src="js/config.js"></script>
-  <script src="js/analytics.js"></script>
-  <script src="js/i18n.js"></script>
-  <script src="js/data.js"></script>
-  <script src="js/history.js"></script>
-  <script src="js/supabase.js"></script>
-  <script src="js/ai.js"></script>
-  <script src="js/app.js"></script>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>
